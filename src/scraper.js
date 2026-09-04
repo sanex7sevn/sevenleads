@@ -321,18 +321,25 @@ export async function scrapeGoogleMaps(query, maxResults = 0, options = {}) {
       try {
         throwIfCancelled(signal);
         const chromePath = resolveChromePath();
-        browser = await puppeteer.launch({
-          headless: 'new',
-          executablePath: chromePath,
-          args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage',
-            '--disable-gpu',
-            '--window-size=1280,900',
-            '--lang=pt-BR,pt,en-US,en'
-          ]
-        });
+       browser = await puppeteer.launch({
+  headless: true,
+  executablePath: chromePath || '/usr/bin/chromium',
+  timeout: 60000,
+  protocolTimeout: 60000,
+  args: [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-gpu',
+    '--disable-software-rasterizer',
+    '--no-zygote',
+    '--disable-background-networking',
+    '--disable-extensions',
+    '--disable-features=Translate,BackForwardCache',
+    '--window-size=1280,900',
+    '--lang=pt-BR,pt,en-US,en'
+  ]
+});
 
         const page = await browser.newPage();
         await page.setViewport({ width: 1280, height: 900 });
