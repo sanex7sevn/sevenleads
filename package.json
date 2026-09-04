@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "build:css": "tailwindcss -c ./tailwind.config.cjs -i ./src/styles/input.css -o ./public/styles/tailwind.css --minify",
+    "build:css": "tailwindcss -i ./src/styles/input.css -o ./public/styles/tailwind.css --minify",
     "assets:optimize": "node scripts/optimize-assets.mjs",
     "test": "node --test --test-concurrency=1 test/config.test.js test/database.test.js test/api.test.js test/lead-normalization.test.js",
     "test:visual": "node scripts/visual-test.mjs",
