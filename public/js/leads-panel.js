@@ -259,9 +259,22 @@ async function checkOllamaStatus() {
 }
 
 async function ensureLeadMessage(lead) {
-  if (lead.selectedMessage) return lead.selectedMessage;
-  lead.selectedMessage = fallbackTemplateMessage(lead);
-  return lead.selectedMessage;
+  const messageBox = document.getElementById('messageTemplate');
+
+  let message = messageBox?.value?.trim() || '';
+
+  if (!message) {
+    message = `Olá {nome}, tudo bem?
+
+Vi o perfil de vocês e queria apresentar uma ideia rápida.`;
+  }
+
+  message = message.replaceAll('{nome}', lead.name || '');
+  message = message.replaceAll('{endereco}', lead.address || '');
+
+  lead.selectedMessage = message;
+
+  return message;
 }
 
 async function generateMessageFromAI() {
