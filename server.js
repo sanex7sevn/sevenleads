@@ -927,16 +927,32 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`======================================================\n`);
 });
 
+// Diagnóstico temporário
+server.on('error', (error) => {
+  console.error('[DEBUG-7f31] Erro ao iniciar servidor:', error);
+});
+
+process.on('beforeExit', (code) => {
+  console.error('[DEBUG-7f31] Processo prestes a encerrar. Código:', code);
+});
+
+process.on('exit', (code) => {
+  console.error('[DEBUG-7f31] Processo encerrado. Código:', code);
+});
+
 function shutdown(signal) {
   logger.info({ signal }, 'graceful shutdown started');
+
   server.close((error) => {
     if (error) {
       logger.error({ error: error.message }, 'graceful shutdown failed');
       process.exitCode = 1;
     }
+
     closeDatabase();
     process.exit();
   });
+
   setTimeout(() => process.exit(1), 10000).unref();
 }
 
