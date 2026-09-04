@@ -1,0 +1,12 @@
+{
+  "name": "SevenLeads",
+  "short_name": "SevenLeads",
+  "description": "Prospecção B2B organizada, do Google Maps ao contrato.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#010318",
+  "theme_color": "#050926",
+  "icons": [
+    { "src": "/logo.png", "sizes": "800x800", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

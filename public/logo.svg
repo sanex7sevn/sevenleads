@@ -1,0 +1,17 @@
+<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <!-- Fundo branco -->
+  <rect width="200" height="200" fill="white"/>
+
+  <!-- "7" em rosa -->
+  <path d="M 55 40 L 145 40 L 80 140 L 80 160"
+        stroke="#ff1493"
+        stroke-width="16"
+        fill="none"
+        stroke-linecap="round"
+        stroke-linejoin="round"/>
+
+  <!-- Pin/Localização em rosa -->
+  <circle cx="100" cy="120" r="12" fill="#ff1493"/>
+  <circle cx="100" cy="120" r="20" fill="none" stroke="#ff1493" stroke-width="3"/>
+  <path d="M 100 145 Q 85 160 75 175 Q 100 190 125 175 Q 115 160 100 145" fill="#ff1493"/>
+</svg>

@@ -1,0 +1,55 @@
+{
+  "name": "sevenleads",
+  "version": "1.0.0",
+  "description": "Buscador gratuito no Google Maps via Scraping + Disparo WhatsApp e Excel",
+  "main": "server.js",
+  "bin": "index.mjs",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "build:css": "tailwindcss -i ./src/styles/input.css -o ./public/styles/tailwind.css --minify",
+    "assets:optimize": "node scripts/optimize-assets.mjs",
+    "test": "node --test --test-concurrency=1 test/config.test.js test/database.test.js test/api.test.js test/lead-normalization.test.js",
+    "test:visual": "node scripts/visual-test.mjs",
+    "test:sources": "node scripts/source-smoke.mjs",
+    "lint": "eslint server.js src public/js public/app.js test scripts",
+    "format": "prettier --write server.js src public/js public/app.js public/index.html test scripts",
+    "quality": "npm run build:css && npm run lint && npm test"
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.3.1",
+    "@whiskeysockets/baileys": "^6.7.8",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^13.0.3",
+    "cheerio": "^1.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "libphonenumber-js": "^1.13.12",
+    "multer": "^2.3.0",
+    "nodemailer": "^9.0.5",
+    "pino": "^9.6.0",
+    "puppeteer": "^23.11.1",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "qrcode": "^1.5.4",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@yao-pkg/pkg": "^6.22.0",
+    "eslint": "^10.9.1",
+    "nodemon": "^3.1.9",
+    "prettier": "^3.9.6",
+    "tailwindcss": "^3.4.17"
+  },
+  "pkg": {
+    "targets": [
+      "node24-win-x64"
+    ],
+    "outputPath": "dist"
+  }
+}

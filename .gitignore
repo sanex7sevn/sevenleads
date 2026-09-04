@@ -1,0 +1,16 @@
+node_modules/
+data/
+auth_sessions/
+auth_info_baileys/
+.env
+*.sqlite
+.npm-cache/
+test-results/
+data/logs/
+chromium/
+dist/
+.version-control/
+*.log
+*.tmp.*
+inicializar.bat
+iniciar.bat
