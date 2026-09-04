@@ -29,7 +29,7 @@
           <button type="button" class="landing-primary" data-open-auth="register">Começar 7 dias grátis</button>
           <button type="button" class="landing-secondary" data-open-auth="login">Já tenho uma conta</button>
         </div>
-        <small>1 busca por dia no teste. IA e WhatsApp disponíveis nos planos pagos.</small>
+        <small>1 busca por dia no teste. WhatsApp disponível nos planos pagos.</small>
       </div>
       <div class="landing-demo" aria-label="Demonstração do painel">
         <div class="demo-top"><span></span><span></span><span></span><strong>SEVEN LEADS</strong></div>
@@ -344,57 +344,27 @@
         </form>
       </div>
 
-      <!-- Configuração de Mensagem Pré-definida -->
+      <!-- Mensagem Personalizada -->
       <div id="messagePanel" class="glow-card bg-[#070b18]/70 border border-[#2563eb]/25 rounded-xl p-5 space-y-3">
         <h2 class="font-semibold text-base flex items-center gap-2 text-white">
           <i class="fa-regular fa-comment-dots text-[#2563eb]"></i> Mensagem Personalizada
         </h2>
-        <p class="text-xs text-slate-400 mb-1 leading-relaxed">
-          💡 <strong class="text-slate-300">Dica Anti-Ban (Spintax):</strong> Use chaves com barras <code class="text-[#2563eb] bg-[#2563eb]/10 px-1 rounded">{Oi|Olá|Opa}</code> para o sistema sortear mensagens diferentes e evitar bloqueios.
-          <br/>Preencha nicho + serviço e clique em Gerar Mensagem. Placeholders: <code class="text-[#2563eb]">{nome}</code> e <code class="text-[#2563eb]">{endereco}</code>.
+        <p class="text-xs text-slate-400 leading-relaxed">
+          Escreva abaixo a mensagem que será usada ao abrir o WhatsApp.
+          Use <code class="text-[#2563eb]">{nome}</code> para inserir automaticamente o nome do comércio.
         </p>
-        <div class="grid grid-cols-1 gap-2">
-          <div>
-            <label class="block text-[11px] font-medium text-slate-400 mb-1">Nicho</label>
-            <input
-              type="text"
-              id="leadNiche"
-              placeholder="Ex: salão de beleza"
-              class="w-full bg-[#0a0a0a] border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#2563eb]"
-            >
-          </div>
-          <div>
-            <label class="block text-[11px] font-medium text-slate-400 mb-1">Serviço que você oferece</label>
-            <input
-              type="text"
-              id="leadService"
-              placeholder="Ex: criação de site profissional"
-              class="w-full bg-[#0a0a0a] border border-slate-700 rounded-lg px-3 py-2 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-[#2563eb]"
-            >
-          </div>
-        </div>
-
-        <p id="ollamaStatusHint" class="text-[11px] text-slate-500">IA local: verificando Ollama...</p>
-
         <textarea
           id="messageTemplate"
-          rows="5"
-          class="w-full bg-[#0a0a0a] border border-slate-700 rounded-lg p-3 text-xs text-slate-200 focus:outline-none focus:border-[#2563eb]"
-        >{Olá|Oi|Opa|Fala} tudo bem? Vi o perfil {de vocês |}da empresa ({nome}) no Google Maps e {percebi|notei} uma {grande|excelente} {oportunidade|chance} para atrair mais clientes {aí |}na sua região {com um site profissional|através do digital}. Podemos {conversar|falar} {2 minutinhos|um instante}?</textarea>
+          rows="8"
+          class="w-full bg-[#0a0a0a] border border-slate-700 rounded-lg p-3 text-sm text-slate-200 focus:outline-none focus:border-[#2563eb]"
+        >Olá {nome}, tudo bem?
 
-        <button
-          type="button"
-          id="btnGenerateMessage"
-          class="w-full bg-[#2563eb] hover:bg-[#3b82f6] text-white font-medium px-4 py-2 rounded-lg text-sm flex items-center justify-center gap-2 transition"
-        >
-          <i class="fa-solid fa-wand-magic-sparkles"></i>
-          <span>Gerar Mensagem</span>
-        </button>
+Vi o perfil de vocês e queria apresentar uma ideia rápida.</textarea>
       </div>
 
     </div>
 
-    <!-- Progresso de Busca -->
+  <!-- Progresso de Busca -->
     <div id="searchProgress" class="hidden bg-[#0a0a0a] border border-[#2563eb]/30 rounded-xl p-4 flex items-center gap-4 animate-pulse">
       <div class="text-[#2563eb] text-2xl">
         <i class="fa-solid fa-circle-notch fa-spin"></i>
@@ -883,8 +853,7 @@
     #searchPanel h2,
     #messagePanel h2 { font-weight: 700; }
 
-    #searchPanel #btnSearch,
-    #messagePanel #btnGenerateMessage {
+    #searchPanel #btnSearch {
       background: var(--brand-blue) !important;
       box-shadow: 0 0 22px rgba(8, 120, 255, .2);
     }
