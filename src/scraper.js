@@ -32,7 +32,7 @@ function resolveChromePath() {
 }
 
 class ScraperQueue {
-  constructor(maxConcurrent = 2) {
+  constructor(maxConcurrent = 1) {
     this.maxConcurrent = maxConcurrent;
     this.currentRunning = 0;
     this.queue = [];
@@ -57,7 +57,7 @@ class ScraperQueue {
   }
 }
 
-const scraperQueue = new ScraperQueue(2);
+const scraperQueue = new ScraperQueue(1);
 
 function leadKey(name, address) {
   return `${(name || '').trim().toLowerCase()}|${(address || '').trim().toLowerCase()}`;
