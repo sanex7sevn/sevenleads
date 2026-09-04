@@ -148,7 +148,6 @@ async function initApp() {
 
     updateSubscriptionUI();
     loadPublicSettings();
-    checkOllamaStatus();
 
     // Carrega leads salvos do banco (sobrevivem a reinícios do servidor)
     loadSavedLeads();
