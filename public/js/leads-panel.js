@@ -384,27 +384,30 @@ async function verifyLeadWhatsApp(lead) {
 
 window.openLeadWhatsApp = async (leadId) => {
   const lead = leadsData.find((l) => l.id === leadId);
+
   if (!lead || !lead.whatsappPhone) {
     alert('Telefone não disponível para este comércio.');
     return;
   }
 
   const btn = document.getElementById('btn-lead-' + leadId);
+
   if (btn) {
     btn.disabled = true;
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Preparando...';
   }
 
-  const whatsappWindow = window.open('', '_blank');
-  let linkOpened = false;
-  if (whatsappWindow) whatsappWindow.opener = null;
-
   try {
     const verification = await verifyLeadWhatsApp(lead);
+
     if (verification === false) {
-      throw new Error('Este número foi consultado e não possui uma conta ativa no WhatsApp.');
+      throw new Error(
+        'Este número foi consultado e não possui uma conta ativa no WhatsApp.'
+      );
     }
+
     const message = await ensureLeadMessage(lead);
+
     const res = await fetch('/api/whatsapp/manual-link', {
       method: 'POST',
       headers: {
@@ -416,39 +419,44 @@ window.openLeadWhatsApp = async (leadId) => {
         message
       })
     });
+
     const data = await res.json();
+
     if (!res.ok || !data.url) {
       if (data.requiresPayment) {
-        whatsappWindow?.close();
         openPixModal();
         return;
       }
-      throw new Error(data.error || 'Não foi possível montar o link do WhatsApp.');
-    }
-    if (whatsappWindow && !whatsappWindow.closed) {
-      whatsappWindow.location.replace(data.url);
-    } else {
-      window.location.assign(data.url);
-    }
-    linkOpened = true;
 
-    // Marca o lead como contatado (check ✓) e persiste no banco
-    if (!lead.contacted) {
-      await markLeadContactedRemote(leadId);
-      lead.contacted = true;
-      renderTable();
+      throw new Error(
+        data.error || 'Não foi possível montar o link do WhatsApp.'
+      );
     }
+
+    // Marca como contatado antes de sair da página
+    if (!lead.contacted) {
+      try {
+        await markLeadContactedRemote(leadId);
+        lead.contacted = true;
+      } catch (e) {
+        console.warn('Não foi possível marcar o lead como contatado:', e);
+      }
+    }
+
+    // Abre o WhatsApp na mesma aba
+    window.location.href = data.url;
+
   } catch (err) {
-    if (!linkOpened) whatsappWindow?.close();
-    alert(err.message);
+    console.error('Erro ao abrir WhatsApp:', err);
+    alert(err.message || 'Não foi possível abrir o WhatsApp.');
   } finally {
     if (btn) {
       btn.disabled = false;
-      btn.innerHTML = '<i class="fa-brands fa-whatsapp"></i> <span>Abrir no WhatsApp</span>';
+      btn.innerHTML =
+        '<i class="fa-brands fa-whatsapp"></i> <span>Abrir no WhatsApp</span>';
     }
   }
 };
-
 // ==========================================
 // 📥 EXPORTAR EXCEL
 // ==========================================
