@@ -41,4 +41,5 @@ echo "✅ Configuração verificada"
 echo "🌐 Iniciando servidor na porta ${PORT:-3000}..."
 
 # Iniciar o servidor
-exec node server.js
+echo "[DEBUG-7f31] Executando Node $(node --version)"
+exec node --trace-uncaught --trace-warnings --trace-exit server.js
