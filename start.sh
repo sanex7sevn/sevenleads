@@ -16,8 +16,17 @@ if [ -z "$SEVENLEADS_DIR" ]; then
     export SEVENLEADS_DIR=/app
 fi
 
-# Criar diretórios necessários
-mkdir -p data data/backups data/receipts auth_sessions auth_info_baileys
+# Criar todos os dados persistentes dentro do único volume
+mkdir -p \
+  /app/data/backups \
+  /app/data/receipts \
+  /app/data/auth_sessions \
+  /app/data/auth_info_baileys
+
+# Direcionar os caminhos antigos para dentro do volume
+rmdir /app/auth_sessions /app/auth_info_baileys 2>/dev/null || true
+ln -sfn /app/data/auth_sessions /app/auth_sessions
+ln -sfn /app/data/auth_info_baileys /app/auth_info_baileys
 
 # Verificar variáveis obrigatórias
 required_vars=("JWT_SECRET" "ADMIN_EMAIL" "ADMIN_PASSWORD" "PIX_KEY")
