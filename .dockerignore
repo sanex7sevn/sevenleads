@@ -22,7 +22,6 @@ README.md
 LICENSE
 .eslintrc*
 .prettier*
-tailwind.config.cjs
 eslint.config.js
 ngrok-tunnel*
 nginx.example.conf
