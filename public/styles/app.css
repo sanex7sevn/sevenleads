@@ -1,9 +1,10 @@
 :root {
-  --page-bg: #010318;
-  --panel-bg: rgba(2, 7, 32, .82);
-  --panel-border: rgba(35, 105, 189, .48);
-  --field-border: rgba(71, 112, 171, .62);
-  --brand-blue: #0878ff;
+  --page-bg: #010719;
+  --panel-bg: rgba(2, 10, 32, .9);
+  --panel-border: rgba(8, 124, 255, .18);
+  --field-border: rgba(8, 124, 255, .28);
+  --brand-blue: #087CFF;
+  --text-primary: #F2F5FF;
 }
 
 * {
@@ -19,14 +20,11 @@ body {
 body {
   overflow-x: hidden;
   font-family: Inter, "Segoe UI", Arial, sans-serif;
+  color: var(--text-primary);
   background:
-    linear-gradient(
-      180deg,
-      rgba(1, 3, 24, .15),
-      rgba(1, 3, 24, .28) 48%,
-      rgba(1, 3, 24, .82)
-    ),
-    url('/background-casino.webp') center top / cover fixed no-repeat !important;
+    linear-gradient(rgba(8, 124, 255, .05) 1px, transparent 1px) 0 0 / 42px 42px,
+    linear-gradient(90deg, rgba(8, 124, 255, .05) 1px, transparent 1px) 0 0 / 42px 42px,
+    var(--page-bg) !important;
 }
 
 button,
@@ -277,7 +275,7 @@ select:focus {
   align-items: center;
   color: #8fc3ff;
   border: 1px solid rgba(59, 130, 246, .3);
-  background: rgba(37, 99, 235, .1);
+  background: rgba(8, 124, 255, .1);
   padding: 8px 12px;
   border-radius: 999px;
   font-size: 13px;
@@ -307,7 +305,7 @@ select:focus {
 
 .landing-primary {
   border: 0;
-  background: linear-gradient(135deg, #0878ff, #2563eb);
+  background: linear-gradient(135deg, #087CFF, #087CFF);
   color: white;
   padding: 14px 22px;
   border-radius: 12px;
@@ -471,7 +469,7 @@ select:focus {
 }
 
 .landing-plans .featured {
-  border-color: #0878ff;
+  border-color: #087CFF;
   transform: translateY(-5px);
 }
 
@@ -488,20 +486,26 @@ select:focus {
   align-items: center;
   gap: 7px;
   padding: 9px 13px;
-  border: 1px solid rgba(71, 112, 171, .35);
+  border: 1px solid var(--panel-border);
   border-radius: 10px;
-  background: rgba(3, 10, 40, .7);
-  color: #93a4c2;
+  background: var(--panel-bg);
+  color: rgba(242, 245, 255, .62);
   font-size: 12px;
   font-weight: 700;
   white-space: nowrap;
+  transition: border-color .15s ease, color .15s ease;
+}
+
+.workspace-tab:hover {
+  border-color: rgba(8, 124, 255, .4);
+  color: var(--text-primary);
 }
 
 .workspace-tab.active {
-  color: #fff;
-  background: #0878ff;
-  border-color: #0878ff;
-  box-shadow: 0 8px 24px rgba(8, 120, 255, .22);
+  color: var(--text-primary);
+  background: var(--brand-blue);
+  border-color: var(--brand-blue);
+  box-shadow: 0 8px 24px rgba(8, 124, 255, .22);
 }
 
 .workspace-tab span {
@@ -579,7 +583,7 @@ select:focus {
 .history-card button,
 .reminder-card button,
 .product-head button {
-  background: #0878ff;
+  background: #087CFF;
   color: #fff;
   border-radius: 9px;
   padding: 8px 11px;
@@ -623,7 +627,7 @@ select:focus {
 
 .pipeline-fill {
   height: 100%;
-  background: linear-gradient(90deg, #0878ff, #60a5fa);
+  background: linear-gradient(90deg, #087CFF, #60a5fa);
   border-radius: 99px;
 }
 
@@ -714,8 +718,8 @@ select:focus {
 }
 
 .lead-card-actions .wa {
-  background: #0878ff;
-  border-color: #0878ff;
+  background: #087CFF;
+  border-color: #087CFF;
   color: white;
 }
 
@@ -829,8 +833,8 @@ select:focus {
 }
 
 .modal-actions .primary {
-  background: #0878ff;
-  border-color: #0878ff;
+  background: #087CFF;
+  border-color: #087CFF;
   color: #fff;
   font-weight: 800;
 }
@@ -949,7 +953,7 @@ select:focus {
 }
 
 .install-prompt button {
-  background: #0878ff;
+  background: #087CFF;
   color: white;
   border-radius: 8px;
   padding: 7px 10px;
