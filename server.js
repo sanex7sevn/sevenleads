@@ -564,7 +564,8 @@ async function executeSearch(user, criteria, options = {}) {
       : await scraperFn(criteria, options);
     const rawResults = Array.isArray(scraperOutcome) ? scraperOutcome : (scraperOutcome.results || []);
     const sourceMetadata = Array.isArray(scraperOutcome) ? {} : (scraperOutcome.metadata || {});
-    const results = prepareSearchResults(user.id, rawResults);
+    // Regra: só entram na listagem comércios com telefone válido (necessário para WhatsApp).
+    const results = prepareSearchResults(user.id, rawResults).filter((lead) => Boolean(lead.whatsappPhone));
     const searchId = 'srch_' + crypto.randomUUID();
     const durationMs = Date.now() - startedAt;
     const phoneCount = results.filter((lead) => lead.whatsappPhone).length;
