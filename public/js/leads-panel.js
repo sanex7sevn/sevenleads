@@ -801,10 +801,18 @@ window.openLeadWhatsApp = async (
       }
     }
 
-    // Abre o WhatsApp na mesma aba
-    window.location.assign(
-      data.url
+    // Abre o WhatsApp em uma nova aba, sem sair do SevenLeads
+    const whatsappWindow = window.open(
+      data.url,
+      '_blank',
+      'noopener'
     );
+
+    if (!whatsappWindow) {
+      alert(
+        'Seu navegador bloqueou a abertura da nova aba. Permita pop-ups para o SevenLeads e clique novamente.'
+      );
+    }
   }
 
   catch (err) {
