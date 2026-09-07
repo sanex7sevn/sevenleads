@@ -46,7 +46,7 @@ async function checkWhatsAppStatus() {
         qrImage.classList.remove('hidden');
         qrLoading.classList.add('hidden');
       } else {
-        qrLoading.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xl text-[#2563eb] mb-2"></i><span>Aguardando QR Code...</span>';
+        qrLoading.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-xl text-[#087CFF] mb-2"></i><span>Aguardando QR Code...</span>';
         qrLoading.classList.remove('hidden');
         qrImage.classList.add('hidden');
       }

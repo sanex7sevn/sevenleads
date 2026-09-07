@@ -17,9 +17,9 @@ function selectPlan(planId) {
 
   document.querySelectorAll('.pix-plan-card').forEach(card => {
     if (card.dataset.plan === planId) {
-      card.className = 'pix-plan-card bg-[#2563eb]/10 border-2 border-[#2563eb] rounded-xl p-3 text-center transition cursor-pointer';
+      card.className = 'pix-plan-card bg-[#087CFF]/10 border-2 border-[#087CFF] rounded-xl p-3 text-center transition cursor-pointer';
     } else {
-      card.className = 'pix-plan-card bg-[#0a0a0a] border-2 border-slate-700 rounded-xl p-3 text-center transition hover:border-[#2563eb] cursor-pointer';
+      card.className = 'pix-plan-card bg-[#020A20] border-2 border-slate-700 rounded-xl p-3 text-center transition hover:border-[#087CFF] cursor-pointer';
     }
   });
 
@@ -148,7 +148,7 @@ async function loadAdminData() {
             <td class="px-4 py-2.5 text-[11px] text-slate-400">${date}</td>
             <td class="px-4 py-2.5 text-right space-x-1">
               ${p.receipt_path ? `<button onclick="downloadReceipt('${escapeHtml(p.id)}')" class="bg-blue-600/20 text-blue-300 border border-blue-500/30 px-2.5 py-1 rounded text-[11px]">Comprovante</button>` : ''}
-              <button onclick="adminApprovePayment('${p.id}')" class="bg-[#9abc8a] hover:bg-[#9abc8a]/80 text-[#0a0a0a] px-2.5 py-1 rounded text-[11px] font-semibold transition">
+              <button onclick="adminApprovePayment('${p.id}')" class="bg-[#9abc8a] hover:bg-[#9abc8a]/80 text-[#020A20] px-2.5 py-1 rounded text-[11px] font-semibold transition">
                 <i class="fa-solid fa-check mr-0.5"></i> Aprovar
               </button>
               <button onclick="adminRejectPayment('${p.id}')" class="bg-red-600/20 hover:bg-red-600/30 text-red-300 border border-red-500/30 px-2.5 py-1 rounded text-[11px] transition">
@@ -232,7 +232,7 @@ async function loadAdminData() {
           <td class="px-4 py-3 font-mono text-slate-400">${u.total_searches || 0}</td>
           <td class="px-4 py-3 text-right space-x-1">
             ${!isAdmin ? `
-              <button onclick="adminRenewUser('${u.id}', 7, 'weekly')" title="Adicionar 7 Dias (Semanal)" class="bg-[#9abc8a] hover:bg-[#9abc8a]/80 text-[#0a0a0a] px-2 py-1 rounded text-[11px] font-semibold transition">
+              <button onclick="adminRenewUser('${u.id}', 7, 'weekly')" title="Adicionar 7 Dias (Semanal)" class="bg-[#9abc8a] hover:bg-[#9abc8a]/80 text-[#020A20] px-2 py-1 rounded text-[11px] font-semibold transition">
                 +7
               </button>
               <button onclick="adminRenewUser('${u.id}', 30, 'monthly')" title="Adicionar 30 Dias (Mensal)" class="bg-blue-600 hover:bg-blue-500 text-white px-2 py-1 rounded text-[11px] font-semibold transition">

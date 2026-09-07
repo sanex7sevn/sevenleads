@@ -12,12 +12,12 @@ function switchAuthTab(tab) {
   if (tab === 'login') {
     loginForm.classList.remove('hidden');
     registerForm.classList.add('hidden');
-    tabBtnLogin.className = 'flex-1 py-2 rounded-md font-medium text-[#2563eb] bg-[#0a0a0a] transition';
+    tabBtnLogin.className = 'flex-1 py-2 rounded-md font-medium text-[#087CFF] bg-[#020A20] transition';
     tabBtnRegister.className = 'flex-1 py-2 rounded-md font-medium text-slate-400 hover:text-white transition';
   } else {
     loginForm.classList.add('hidden');
     registerForm.classList.remove('hidden');
-    tabBtnRegister.className = 'flex-1 py-2 rounded-md font-medium text-[#2563eb] bg-[#0a0a0a] transition';
+    tabBtnRegister.className = 'flex-1 py-2 rounded-md font-medium text-[#087CFF] bg-[#020A20] transition';
     tabBtnLogin.className = 'flex-1 py-2 rounded-md font-medium text-slate-400 hover:text-white transition';
   }
 }
@@ -185,7 +185,7 @@ function updateSubscriptionUI() {
 
   if (currentUser.role === 'admin') {
     isPaidUser = true;
-    subBadge.className = 'cursor-pointer text-xs px-3 py-1.5 rounded-full border border-purple-500/30 bg-purple-500/10 text-purple-300 flex items-center gap-1.5 font-semibold';
+    subBadge.className = 'cursor-pointer text-xs px-3 py-1.5 rounded-full border border-[#087CFF]/30 bg-[#087CFF]/10 text-[#087CFF] flex items-center gap-1.5 font-semibold';
     subBadgeText.innerText = '👑 Administrador Vitalício';
     expiredWarningBanner.classList.add('hidden');
     dailyLimitWarning.classList.add('hidden');

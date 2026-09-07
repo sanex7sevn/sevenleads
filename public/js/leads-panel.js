@@ -33,11 +33,11 @@ document.querySelectorAll('.filter-btn').forEach((btn) => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.filter-btn').forEach((b) => {
       b.className =
-        'filter-btn px-3 py-1 rounded-md bg-slate-800/70 border border-slate-700 text-slate-200 hover:bg-slate-700 font-medium flex items-center gap-1.5';
+        'filter-btn px-3 py-1 rounded-md bg-[#020A20] border border-[#087CFF]/20 text-[#F2F5FF]/65 hover:border-[#087CFF]/40 hover:text-[#F2F5FF] font-medium flex items-center gap-1.5 transition';
     });
 
     btn.className =
-      'filter-btn active px-3 py-1 rounded-md bg-[#2563eb] text-white border border-[#2563eb] font-medium flex items-center gap-1.5';
+      'filter-btn active px-3 py-1 rounded-md bg-[#087CFF] text-[#F2F5FF] border border-[#087CFF] font-medium flex items-center gap-1.5';
 
     currentFilter = btn.dataset.filter;
     renderTable();
@@ -350,7 +350,7 @@ function renderTable() {
                       href="${escapeHtml(safeMapsUrl)}"
                       target="_blank"
                       rel="noopener noreferrer"
-                      class="text-xs text-slate-500 hover:text-[#2563eb] ml-1.5"
+                      class="text-xs text-slate-500 hover:text-[#087CFF] ml-1.5"
                       title="Ver detalhes"
                     >
                       <i class="fa-solid fa-arrow-up-right-from-square"></i>
@@ -394,7 +394,7 @@ function renderTable() {
                 <button
                   onclick="openLeadWhatsApp('${safeId}')"
                   id="btn-lead-${safeId}"
-                  class="glow-btn bg-[#2563eb] hover:bg-[#3b82f6] text-white px-3 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition"
+                  class="glow-btn bg-[#087CFF] hover:bg-[#3b82f6] text-white px-3 py-1.5 rounded-md text-xs font-medium inline-flex items-center gap-1.5 transition"
                   ${
                     !lead.whatsappPhone
                       ? 'disabled title="Telefone não disponível"'
@@ -441,11 +441,11 @@ function renderTable() {
         <td colspan="8" class="p-0">
 
           <div
-            class="bg-[#0a0a0a] px-4 py-8 text-center border-t-2 border-dashed border-[#2563eb]/40"
+            class="bg-[#020A20] px-4 py-8 text-center border-t-2 border-dashed border-[#087CFF]/40"
           >
 
             <div
-              class="w-12 h-12 mx-auto rounded-full bg-[#2563eb]/10 text-[#2563eb] flex items-center justify-center text-xl mb-3"
+              class="w-12 h-12 mx-auto rounded-full bg-[#087CFF]/10 text-[#087CFF] flex items-center justify-center text-xl mb-3"
             >
               <i class="fa-solid fa-lock"></i>
             </div>
@@ -464,7 +464,7 @@ function renderTable() {
 
             <button
               onclick="openPixModal()"
-              class="mt-4 bg-[#2563eb] hover:bg-[#3b82f6] text-white font-semibold text-xs px-5 py-2 rounded-lg transition inline-flex items-center gap-1.5 shadow-lg shadow-[#2563eb]/40"
+              class="mt-4 bg-[#087CFF] hover:bg-[#3b82f6] text-white font-semibold text-xs px-5 py-2 rounded-lg transition inline-flex items-center gap-1.5 shadow-lg shadow-[#087CFF]/40"
             >
               <i class="fa-brands fa-pix"></i>
               Ver planos
