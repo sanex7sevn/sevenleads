@@ -255,28 +255,48 @@ async function enrichPlaceDetails(browser, summaries, onProgress, signal) {
         }
 
         try {
-          await detailPage.goto(item.mapsUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
+          const absoluteUrl = new URL(item.mapsUrl, 'https://www.google.com').toString();
+          await detailPage.goto(absoluteUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
           throwIfCancelled(signal);
-          await sleep(randomDelay(350, 650));
+
+          // O painel de detalhes (telefone/site/endereço) só é montado via JS DEPOIS
+          // do domcontentloaded. Uma espera fixa curta fazia o robô ler a página
+          // vazia com frequência. Agora aguardamos o painel realmente aparecer.
+          await detailPage
+            .waitForSelector(
+              'button[data-item-id^="phone:tel:"], a[href^="tel:"], button[data-item-id="address"], h1.DUwDvf',
+              { timeout: 8000 }
+            )
+            .catch(() => {});
           throwIfCancelled(signal);
 
-          const details = await detailPage.evaluate(() => {
-        const siteEl = document.querySelector('a[data-item-id="authority"], a[aria-label*="site" i], a[aria-label*="website" i]');
-        const website = siteEl ? siteEl.getAttribute('href') : null;
+          const extractDetails = () => detailPage.evaluate(() => {
+            const siteEl = document.querySelector('a[data-item-id="authority"], a[aria-label*="site" i], a[aria-label*="website" i]');
+            const website = siteEl ? siteEl.getAttribute('href') : null;
 
-        const phoneEl = document.querySelector('button[data-item-id^="phone:tel:"], button[aria-label*="Telefone:"], a[href^="tel:"]');
-        let phone = '';
-        if (phoneEl) {
-          const dataId = phoneEl.getAttribute('data-item-id') || '';
-          const aria = phoneEl.getAttribute('aria-label') || '';
-          phone = dataId.replace('phone:tel:', '') || aria.replace(/telefone:|\+55/gi, '').trim() || phoneEl.innerText.trim();
-        }
+            const phoneEl = document.querySelector('button[data-item-id^="phone:tel:"], button[aria-label*="Telefone:"], a[href^="tel:"]');
+            let phone = '';
+            if (phoneEl) {
+              const dataId = phoneEl.getAttribute('data-item-id') || '';
+              const aria = phoneEl.getAttribute('aria-label') || '';
+              phone = dataId.replace('phone:tel:', '') || aria.replace(/telefone:|\+55/gi, '').trim() || phoneEl.innerText.trim();
+            }
 
-        const addrEl = document.querySelector('button[data-item-id="address"], button[aria-label*="Endereço:" i]');
-        const address = addrEl ? (addrEl.getAttribute('aria-label') || addrEl.innerText).replace(/endereço:/gi, '').trim() : '';
+            const addrEl = document.querySelector('button[data-item-id="address"], button[aria-label*="Endereço:" i]');
+            const address = addrEl ? (addrEl.getAttribute('aria-label') || addrEl.innerText).replace(/endereço:/gi, '').trim() : '';
 
             return { website, phone, address };
           });
+
+          let details = await extractDetails();
+
+          // Às vezes o telefone renderiza um instante depois do resto do painel.
+          // Se ainda não achamos, damos mais uma chance curta antes de desistir.
+          if (!details.phone) {
+            await sleep(randomDelay(900, 1400));
+            throwIfCancelled(signal);
+            details = await extractDetails();
+          }
 
           results[index] = {
             ...item,
