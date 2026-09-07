@@ -2,7 +2,7 @@ let currentUser = null;
 localStorage.removeItem('sevenleads_token');
 let authToken = true;
 let leadsData = [];
-let currentFilter = 'all';
+let currentFilter = 'no-site';
 let currentPixKey = 'seu-pix-aqui@chave.com';
 let waStatusInterval = null;
 let availablePlans = [];
