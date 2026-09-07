@@ -10,12 +10,24 @@ import {
 
 const controllers = new Map();
 const JOB_TTL_MS = 24 * 60 * 60 * 1000;
+// Rede de segurança: se o runner nunca resolver nem rejeitar (ex.: alguma
+// promise de terceiros travada, como já aconteceu com browser.close() do
+// Puppeteer), o job ficaria "running" para sempre e bloquearia o usuário
+// com o erro de "busca em andamento". Depois desse prazo, forçamos a busca
+// a falhar para liberar o usuário.
+const JOB_HARD_TIMEOUT_MS = 15 * 60 * 1000;
 
 recoverInterruptedSearchJobs();
 
 function cancellationError() {
   const error = new Error('Busca cancelada pelo usuário.');
   error.code = 'SEARCH_CANCELLED';
+  return error;
+}
+
+function timeoutError() {
+  const error = new Error('A busca demorou demais e foi interrompida automaticamente. Tente novamente.');
+  error.code = 'SEARCH_TIMEOUT';
   return error;
 }
 
@@ -55,14 +67,24 @@ export function startSearchJob(userId, query, runner, meta = {}) {
     job.phase = 'starting';
     job.updatedAt = new Date().toISOString();
     saveSearchJob(job);
+    let watchdog;
     try {
-      const outcome = await runner({
-        signal: controller.signal,
-        onProgress(progress) {
-          Object.assign(job, progress, { updatedAt: new Date().toISOString() });
-          saveSearchJob(job);
-        }
+      const watchdogPromise = new Promise((_, reject) => {
+        watchdog = setTimeout(() => {
+          controller.abort();
+          reject(timeoutError());
+        }, JOB_HARD_TIMEOUT_MS);
       });
+      const outcome = await Promise.race([
+        runner({
+          signal: controller.signal,
+          onProgress(progress) {
+            Object.assign(job, progress, { updatedAt: new Date().toISOString() });
+            saveSearchJob(job);
+          }
+        }),
+        watchdogPromise
+      ]);
       if (controller.signal.aborted) throw cancellationError();
       const results = Array.isArray(outcome) ? outcome : (outcome.results || []);
       job.results = results;
@@ -77,7 +99,7 @@ export function startSearchJob(userId, query, runner, meta = {}) {
       job.status = 'completed';
       job.phase = 'completed';
     } catch (error) {
-      const cancelled = controller.signal.aborted || error.code === 'SEARCH_CANCELLED';
+      const cancelled = (controller.signal.aborted && error.code !== 'SEARCH_TIMEOUT') || error.code === 'SEARCH_CANCELLED';
       job.status = cancelled ? 'cancelled' : 'failed';
       job.phase = job.status;
       job.error = error.message || 'Não foi possível concluir a busca.';
@@ -86,6 +108,7 @@ export function startSearchJob(userId, query, runner, meta = {}) {
         job.quotaReleased = true;
       }
     } finally {
+      clearTimeout(watchdog);
       controllers.delete(id);
       job.updatedAt = new Date().toISOString();
       saveSearchJob(job);

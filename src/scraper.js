@@ -67,6 +67,41 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+// browser.close() do Puppeteer pode nunca resolver se o processo do Chrome
+// ficar travado (comum após analisar vários locais em paralelo). Sem um
+// timeout aqui, a busca inteira fica pendurada para sempre e o job nunca
+// sai do status "running" — bloqueando o usuário com o erro de "busca em
+// andamento" até o servidor ser reiniciado manualmente. Damos um prazo e,
+// se estourar, matamos o processo na força.
+async function closeBrowserSafely(browser, timeoutMs = 10000) {
+  if (!browser) return;
+  let timedOut = false;
+  const timeout = new Promise((resolve) => {
+    setTimeout(() => {
+      timedOut = true;
+      resolve();
+    }, timeoutMs);
+  });
+
+  try {
+    await Promise.race([browser.close(), timeout]);
+  } catch (e) {
+    timedOut = true;
+  }
+
+  if (timedOut) {
+    try {
+      const proc = browser.process?.();
+      if (proc && !proc.killed) {
+        console.warn('[Scraper] browser.close() não respondeu a tempo. Encerrando processo à força.');
+        proc.kill('SIGKILL');
+      }
+    } catch (e) {
+      console.warn('[Scraper] Falha ao forçar encerramento do Chrome:', e.message);
+    }
+  }
+}
+
 function throwIfCancelled(signal) {
   if (signal?.aborted) {
     const error = new Error('Busca cancelada pelo usuário.');
@@ -378,7 +413,7 @@ export async function scrapeGoogleMaps(query, maxResults = 0, options = {}) {
         if (blocked) {
           const err = new Error('O Google Maps detectou a automação (possível bloqueio).');
           err.code = 'SCRAPER_BLOCKED';
-          await browser.close();
+          await closeBrowserSafely(browser);
           lastError = err;
           console.warn(`[Scraper] ${err.message} Tentativa ${attempt}/${MAX_ATTEMPTS}.`);
           continue;
@@ -432,7 +467,7 @@ export async function scrapeGoogleMaps(query, maxResults = 0, options = {}) {
           if (limited.length === 0) {
             const err = new Error('Nenhum comércio encontrado. Confira o termo/cidade da busca ou tente novamente.');
             err.code = 'NO_RESULTS';
-            await browser.close();
+            await closeBrowserSafely(browser);
             throw err;
           }
 
@@ -442,13 +477,13 @@ export async function scrapeGoogleMaps(query, maxResults = 0, options = {}) {
           results.push(...detailed);
         }
 
-        await browser.close();
+        await closeBrowserSafely(browser);
 
         const processedResults = results.map((p, index) => processPlace(p, index));
         console.log(`[Scraper] Busca concluída: ${processedResults.length} resultados.`);
         return processedResults;
       } catch (error) {
-        if (browser) await browser.close();
+        if (browser) await closeBrowserSafely(browser);
         if (error.code === 'SEARCH_CANCELLED') throw error;
         if (error.code === 'NO_RESULTS') throw error;
         lastError = error;
