@@ -587,7 +587,8 @@ async function executeSearch(user, criteria, options = {}) {
     });
     return {
       results, searchId, hasActiveSubscription: permission.activeCheck.allowed, source,
-      interpretedLocation: operationMetadata.locationLabel
+      interpretedLocation: operationMetadata.locationLabel,
+      warning: sourceMetadata.warning || null
     };
   } catch (error) {
     recordSourceMetric({
