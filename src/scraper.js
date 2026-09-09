@@ -1,11 +1,11 @@
-import puppeteer from 'puppeteer-extra';
-import StealthPlugin from 'puppeteer-extra-plugin-stealth';
+import puppeteer from 'puppeteer';
+import { readPlaceDetails, requireGoogleContacts } from './maps-details.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { classifyWebsite } from './lead-normalization.js';
 
-puppeteer.use(StealthPlugin());
+// Use the native Puppeteer lifecycle; no asynchronous plugin page hooks.
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -273,85 +273,27 @@ async function enrichPlaceDetails(browser, summaries, onProgress, signal) {
   const results = new Array(summaries.length);
   let nextIndex = 0;
   let analyzed = 0;
-  const workerCount = Math.min(4, summaries.length);
-
+  let failed = false;
   async function worker() {
-    const detailPage = await browser.newPage();
-    try {
-      while (true) {
-        throwIfCancelled(signal);
-        const index = nextIndex++;
-        if (index >= summaries.length) return;
-        const item = summaries[index];
-        if (!item.mapsUrl) {
-          results[index] = item;
-          analyzed++;
-          continue;
-        }
-
-        try {
-          const absoluteUrl = new URL(item.mapsUrl, 'https://www.google.com').toString();
-          await detailPage.goto(absoluteUrl, { waitUntil: 'domcontentloaded', timeout: 15000 });
-          throwIfCancelled(signal);
-
-          // O painel de detalhes (telefone/site/endereço) só é montado via JS DEPOIS
-          // do domcontentloaded. Uma espera fixa curta fazia o robô ler a página
-          // vazia com frequência. Agora aguardamos o painel realmente aparecer.
-          await detailPage
-            .waitForSelector(
-              'button[data-item-id^="phone:tel:"], a[href^="tel:"], button[data-item-id="address"], h1.DUwDvf',
-              { timeout: 8000 }
-            )
-            .catch(() => {});
-          throwIfCancelled(signal);
-
-          const extractDetails = () => detailPage.evaluate(() => {
-            const siteEl = document.querySelector('a[data-item-id="authority"], a[aria-label*="site" i], a[aria-label*="website" i]');
-            const website = siteEl ? siteEl.getAttribute('href') : null;
-
-            const phoneEl = document.querySelector('button[data-item-id^="phone:tel:"], button[aria-label*="Telefone:"], a[href^="tel:"]');
-            let phone = '';
-            if (phoneEl) {
-              const dataId = phoneEl.getAttribute('data-item-id') || '';
-              const aria = phoneEl.getAttribute('aria-label') || '';
-              phone = dataId.replace('phone:tel:', '') || aria.replace(/telefone:|\+55/gi, '').trim() || phoneEl.innerText.trim();
-            }
-
-            const addrEl = document.querySelector('button[data-item-id="address"], button[aria-label*="Endereço:" i]');
-            const address = addrEl ? (addrEl.getAttribute('aria-label') || addrEl.innerText).replace(/endereço:/gi, '').trim() : '';
-
-            return { website, phone, address };
-          });
-
-          let details = await extractDetails();
-
-          // Às vezes o telefone renderiza um instante depois do resto do painel.
-          // Se ainda não achamos, damos mais uma chance curta antes de desistir.
-          if (!details.phone) {
-            await sleep(randomDelay(900, 1400));
-            throwIfCancelled(signal);
-            details = await extractDetails();
-          }
-
-          results[index] = {
-            ...item,
-            website: details.website || null,
-            phone: details.phone || 'Não informado',
-            address: details.address || item.address
-          };
-        } catch (err) {
-          if (signal?.aborted) throwIfCancelled(signal);
-          results[index] = { ...item, website: null, phone: 'Não informado' };
-        }
+    while (!failed) {
+      throwIfCancelled(signal);
+      const index = nextIndex++;
+      if (index >= summaries.length) return;
+      try {
+        if (!summaries[index].mapsUrl) throw new Error('Estabelecimento sem link de detalhes.');
+        results[index] = await readPlaceDetails(browser, summaries[index], signal);
         analyzed++;
         onProgress?.({ phase: 'analyzing', found: summaries.length, analyzed, remaining: summaries.length - analyzed });
+      } catch (error) {
+        failed = true;
+        throw error;
       }
-    } finally {
-      await detailPage.close().catch(() => {});
     }
   }
-
-  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  // Wait for all workers before the caller closes or restarts the browser.
+  const workers = await Promise.allSettled(Array.from({ length: Math.min(2, summaries.length) }, () => worker()));
+  const failure = workers.find((result) => result.status === 'rejected');
+  if (failure) throw failure.reason;
   return results;
 }
 
@@ -378,7 +320,7 @@ export async function scrapeGoogleMaps(query, maxResults = 0, options = {}) {
         const chromePath = resolveChromePath();
        browser = await puppeteer.launch({
   headless: true,
-  executablePath: chromePath || '/usr/bin/chromium',
+  executablePath: chromePath,
   timeout: 60000,
   protocolTimeout: 60000,
   args: [
@@ -456,7 +398,7 @@ export async function scrapeGoogleMaps(query, maxResults = 0, options = {}) {
             return { name, phone, website, address, mapsUrl: window.location.href };
           });
 
-          if (single.name) results.push(single);
+          if (single.name) results.push(await readPlaceDetails(browser, single, signal));
         } else {
           console.log('[Scraper] Rolando lista de estabelecimentos até o fim...');
           const placeSummaries = await scrollFeedUntilEnd(page, (items) => {
@@ -479,7 +421,7 @@ export async function scrapeGoogleMaps(query, maxResults = 0, options = {}) {
 
         await closeBrowserSafely(browser);
 
-        const processedResults = results.map((p, index) => processPlace(p, index));
+        const processedResults = requireGoogleContacts(results.map((p, index) => processPlace(p, index)));
         console.log(`[Scraper] Busca concluída: ${processedResults.length} resultados.`);
         return processedResults;
       } catch (error) {
@@ -499,10 +441,11 @@ export async function scrapeGoogleMaps(query, maxResults = 0, options = {}) {
     // Esgota as tentativas: lança um erro claro e útil
     const friendly = new Error(
       'Não foi possível concluir a busca no Google Maps após várias tentativas. ' +
-      'Isso costuma acontecer por bloqueio temporário do Google. ' +
+      'Pode haver falha no navegador, lentidão ou bloqueio temporário do Google. ' +
       'Aguarde alguns minutos e tente novamente, ou troque o termo de busca.'
     );
     friendly.cause = lastError;
+    friendly.code = lastError?.code || 'SCRAPER_FAILED';
     console.error('[Scraper] Falha definitiva:', lastError?.message);
     throw friendly;
   });
