@@ -1,3 +1,5 @@
+import { registerAdminDebug } from './src/admin-debug.js';
+import { withDebugContext } from './src/debug-state.js';
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
@@ -35,6 +37,7 @@ import {
   canUserSearch,
   consumeSearchQuota,
   getSourceMetrics,
+  listDebugSearches,
   recordSourceMetric,
   requireActiveSubscriptionCheck,
   upsertLeads,
@@ -638,7 +641,7 @@ app.post('/api/places/search/start', authenticateToken, searchLimiter, (req, res
   const job = startSearchJob(
     req.user.id,
     criteria.displayQuery,
-    (opts) => executeSearch(req.user, criteria, { ...opts, source, maxResults, permissionChecked: true }),
+    (opts) => withDebugContext({ email: req.user.email, query: criteria.displayQuery, source }, () => executeSearch(req.user, criteria, { ...opts, source, maxResults, permissionChecked: true })),
     {
       source, sourceLabel: SOURCE_LABELS[source] || source, maxResults, criteria,
       quotaReserved: permission.reserved, quotaDate: permission.quotaDate
@@ -779,6 +782,8 @@ app.post('/api/places/save', authenticateToken, (req, res) => {
 // ==========================================
 
 // Estatísticas do Sistema
+registerAdminDebug(app, { authenticateToken, requireAdmin, adminEmail: config.adminEmail, listDebugSearches, root: __dirname });
+
 app.get('/api/admin/stats', authenticateToken, requireAdmin, (req, res) => {
   const stats = getSystemStats();
   res.json(stats);
