@@ -1,4 +1,4 @@
-const CACHE = 'sevenleads-v5';
+const CACHE = 'sevenleads-v6';
 const ASSETS = [
   '/', '/styles/tailwind.css', '/styles/app.css', '/app.js', '/js/api.js', '/js/ui.js',
   '/js/state.js', '/js/session.js', '/js/whatsapp-panel.js', '/js/leads-panel.js',
