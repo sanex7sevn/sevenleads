@@ -1,3 +1,4 @@
+import { recordDebugEvent } from './debug-state.js';
 import puppeteer from 'puppeteer';
 import { readPlaceDetails, requireGoogleContacts } from './maps-details.js';
 import fs from 'fs';
@@ -413,6 +414,7 @@ export async function scrapeGoogleMaps(query, maxResults = 0, options = {}) {
         if (error.code === 'SEARCH_CANCELLED') throw error;
         if (error.code === 'NO_RESULTS') throw error;
         lastError = error;
+        recordDebugEvent(`Busca: tentativa ${attempt}/${MAX_ATTEMPTS} — ${error.message}`);
         console.warn(`[Scraper] Erro na tentativa ${attempt}/${MAX_ATTEMPTS}:`, error.message);
 
         // Se for um erro de navegação/tempo, dá chance de repetir

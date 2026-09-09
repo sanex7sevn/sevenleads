@@ -1,3 +1,4 @@
+import { recordDebugEvent } from './debug-state.js';
 function checkCancelled(signal) {
   if (!signal?.aborted) return;
   const error = new Error('Busca cancelada pelo usuário.');
@@ -49,6 +50,7 @@ export async function readPlaceDetails(browser, item, signal, { page: sharedPage
     } catch (error) {
       checkCancelled(signal);
       lastError = error;
+      recordDebugEvent(`Detalhes: tentativa ${attempt}/2 — ${error.message}`);
       console.warn(`[Scraper] Falha ao coletar detalhes (tentativa ${attempt}/2): ${error.message}`);
       // Do not send more commands to an unresponsive browser. The search runner
       // closes it with a deadline and starts a new browser on the next attempt.

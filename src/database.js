@@ -527,6 +527,16 @@ export function recordSourceMetric(metric) {
   return id;
 }
 
+export function listDebugSearches(email = '') {
+  return db.prepare(`
+    SELECT j.id, u.email, j.query, j.source, j.status, j.phase,
+      j.found, j.analyzed, j.remaining, j.error, j.created_at, j.updated_at
+    FROM search_jobs j JOIN users u ON u.id = j.user_id
+    WHERE (? = '' OR LOWER(u.email) = ?)
+    ORDER BY j.created_at DESC LIMIT 100
+  `).all(email, email);
+}
+
 export function getSourceMetrics(days = 7) {
   const safeDays = Math.min(Math.max(Number(days) || 7, 1), 90);
   const cutoff = new Date(Date.now() - safeDays * 24 * 60 * 60 * 1000).toISOString();
