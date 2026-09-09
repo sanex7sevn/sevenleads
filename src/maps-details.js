@@ -16,10 +16,19 @@ export async function readPlaceDetails(browser, item, signal) {
         waitUntil: 'domcontentloaded', timeout: 30000
       });
       checkCancelled(signal);
-      // A heading alone does not mean that the contact panel has loaded.
-      await page.waitForSelector('button[data-item-id="address"], button[data-item-id^="phone:tel:"], a[href^="tel:"]', { timeout: 15000 });
+      // Detail tabs may open a consent screen even after the search loaded.
+      for (const button of await page.$$('button')) {
+        const label = await button.evaluate((element) => element.innerText || element.getAttribute('aria-label') || '');
+        if (/^(aceitar tudo|accept all|concordo|i agree)$/i.test(label.trim())) {
+          await button.click();
+          break;
+        }
+      }
+      // A business without public contacts can still have a valid details panel.
+      // Wait separately for the phone instead of requiring an address to exist.
+      await page.waitForSelector('h1.DUwDvf, button[data-item-id="address"], button[data-item-id^="phone:tel:"], a[href^="tel:"]', { timeout: 30000 });
       try {
-        await page.waitForSelector('button[data-item-id^="phone:tel:"], a[href^="tel:"]', { timeout: 5000 });
+        await page.waitForSelector('button[data-item-id^="phone:tel:"], a[href^="tel:"]', { timeout: 10000 });
       } catch (error) {
         // A loaded business can legitimately have no public phone number.
         if (error.name !== 'TimeoutError') throw error;
@@ -41,6 +50,11 @@ export async function readPlaceDetails(browser, item, signal) {
       checkCancelled(signal);
       lastError = error;
       console.warn(`[Scraper] Falha ao coletar detalhes (tentativa ${attempt}/2): ${error.message}`);
+      if (page) {
+        try {
+          console.warn(`[Scraper] Página de detalhes: ${page.url()} | título: ${await page.title()}`);
+        } catch { /* The browser may already have disconnected. */ }
+      }
     } finally {
       if (page) await page.close().catch(() => {});
     }
