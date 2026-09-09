@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Diagnóstico · SevenLeads</title><link rel="stylesheet" href="/admin/debug/style.css"><script src="/admin/debug/app.js" defer></script></head>
+<body><main><header><div><p class="eyebrow">SEVENLEADS · ADMINISTRADOR</p><h1>Diagnóstico das buscas</h1><p>Acompanhe a coleta e identifique falhas por cliente.</p></div><a href="/">Voltar ao site</a></header>
+<form id="filters"><label>E-mail do cliente<input type="email" id="email" maxlength="254" placeholder="Todos os clientes" autocomplete="off"></label><button>Atualizar</button><label class="toggle"><input type="checkbox" id="auto"> Atualizar a cada 15 segundos</label></form>
+<p id="status" role="status">Carregando…</p><section id="metrics" class="metrics" aria-label="Servidor"></section>
+<section><h2>Buscas recentes</h2><p>Até 100 buscas. O histórico de execução é mantido pelo sistema por aproximadamente 24 horas.</p><div class="scroll"><table><thead><tr><th>Horário / ID</th><th>Cliente / pesquisa</th><th>Fonte</th><th>Situação / etapa</th><th>Encontrados / analisados</th><th>Erro</th></tr></thead><tbody id="jobs"></tbody></table></div></section>
+<section><h2>Eventos do coletor</h2><p>Até 100 eventos exibidos, entre os últimos 200 desta instância. São apagados quando o servidor reinicia. Não são os logs completos do Railway.</p><div id="events"></div></section>
+</main></body></html>
