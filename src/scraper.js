@@ -269,31 +269,15 @@ async function scrollFeedUntilEnd(page, onBatch, signal, maxResults = 0) {
   return Array.from(collected.values());
 }
 
-async function enrichPlaceDetails(browser, summaries, onProgress, signal) {
-  const results = new Array(summaries.length);
-  let nextIndex = 0;
-  let analyzed = 0;
-  let failed = false;
-  async function worker() {
-    while (!failed) {
-      throwIfCancelled(signal);
-      const index = nextIndex++;
-      if (index >= summaries.length) return;
-      try {
-        if (!summaries[index].mapsUrl) throw new Error('Estabelecimento sem link de detalhes.');
-        results[index] = await readPlaceDetails(browser, summaries[index], signal);
-        analyzed++;
-        onProgress?.({ phase: 'analyzing', found: summaries.length, analyzed, remaining: summaries.length - analyzed });
-      } catch (error) {
-        failed = true;
-        throw error;
-      }
-    }
+async function enrichPlaceDetails(browser, page, summaries, onProgress, signal) {
+  const results = [];
+  console.log('[Scraper] Coleta sequencial reutilizando a aba da busca.');
+  for (const item of summaries) {
+    throwIfCancelled(signal);
+    if (!item.mapsUrl) throw new Error('Estabelecimento sem link de detalhes.');
+    results.push(await readPlaceDetails(browser, item, signal, { page }));
+    onProgress?.({ phase: 'analyzing', found: summaries.length, analyzed: results.length, remaining: summaries.length - results.length });
   }
-  // Wait for all workers before the caller closes or restarts the browser.
-  const workers = await Promise.allSettled(Array.from({ length: Math.min(2, summaries.length) }, () => worker()));
-  const failure = workers.find((result) => result.status === 'rejected');
-  if (failure) throw failure.reason;
   return results;
 }
 
@@ -338,7 +322,7 @@ export async function scrapeGoogleMaps(query, maxResults = 0, options = {}) {
   ]
 });
 
-        const page = await browser.newPage();
+        const page = (await browser.pages())[0] || await browser.newPage();
         await page.setViewport({ width: 1280, height: 900 });
 
         const searchUrl = `https://www.google.com/maps/search/${encodeURIComponent(query)}?hl=pt-BR`;
@@ -398,7 +382,7 @@ export async function scrapeGoogleMaps(query, maxResults = 0, options = {}) {
             return { name, phone, website, address, mapsUrl: window.location.href };
           });
 
-          if (single.name) results.push(await readPlaceDetails(browser, single, signal));
+          if (single.name) results.push(await readPlaceDetails(browser, single, signal, { page }));
         } else {
           console.log('[Scraper] Rolando lista de estabelecimentos até o fim...');
           const placeSummaries = await scrollFeedUntilEnd(page, (items) => {
@@ -415,7 +399,7 @@ export async function scrapeGoogleMaps(query, maxResults = 0, options = {}) {
 
           console.log(`[Scraper] ${limited.length} comércios únicos. Buscando telefones e sites...`);
           onProgress?.({ phase: 'analyzing', attempt, found: limited.length, analyzed: 0, remaining: limited.length });
-          const detailed = await enrichPlaceDetails(browser, limited, onProgress, signal);
+          const detailed = await enrichPlaceDetails(browser, page, limited, onProgress, signal);
           results.push(...detailed);
         }
 

@@ -5,13 +5,13 @@ function checkCancelled(signal) {
   throw error;
 }
 
-export async function readPlaceDetails(browser, item, signal) {
+export async function readPlaceDetails(browser, item, signal, { page: sharedPage } = {}) {
   let lastError;
   for (let attempt = 1; attempt <= 2; attempt++) {
     checkCancelled(signal);
     let page;
     try {
-      page = await browser.newPage();
+      page = sharedPage || await browser.newPage();
       await page.goto(new URL(item.mapsUrl, 'https://www.google.com').toString(), {
         waitUntil: 'domcontentloaded', timeout: 30000
       });
@@ -50,13 +50,19 @@ export async function readPlaceDetails(browser, item, signal) {
       checkCancelled(signal);
       lastError = error;
       console.warn(`[Scraper] Falha ao coletar detalhes (tentativa ${attempt}/2): ${error.message}`);
+      // Do not send more commands to an unresponsive browser. The search runner
+      // closes it with a deadline and starts a new browser on the next attempt.
+      if (/protocolTimeout|Runtime\..*timed out|Target\..*timed out|Session closed|Target closed|Connection closed/i.test(error.message)) {
+        error.code = 'SCRAPER_BROWSER_UNRESPONSIVE';
+        throw error;
+      }
       if (page) {
         try {
-          console.warn(`[Scraper] Página de detalhes: ${page.url()} | título: ${await page.title()}`);
+          console.warn(`[Scraper] Página de detalhes: ${page.url()}`);
         } catch { /* The browser may already have disconnected. */ }
       }
     } finally {
-      if (page) await page.close().catch(() => {});
+      if (page && !sharedPage) await page.close().catch(() => {});
     }
   }
   const error = new Error('Falha ao carregar os detalhes dos estabelecimentos no Google Maps. Tente novamente em alguns minutos.');
