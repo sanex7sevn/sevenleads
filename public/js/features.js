@@ -309,7 +309,7 @@
         if (data.job.status === 'completed') {
           leadsData = (data.job.results || []).map(normalizeLead);
           selectedLeadIds.clear(); isPaidUser = Boolean(data.job.hasActiveSubscription); renderTable();
-          UI.notify(`${leadsData.length} leads encontrados e salvos nesta pesquisa.`, 'success');
+          UI.notify(data.job.warning || `${leadsData.length} leads encontrados e salvos nesta pesquisa.`, data.job.warning ? 'info' : 'success');
           currentSearchJobId = null;
           await verifyWhatsAppNumbers();
           break;
