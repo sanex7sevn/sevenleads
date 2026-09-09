@@ -90,6 +90,7 @@ export function startSearchJob(userId, query, runner, meta = {}) {
       job.results = results;
       if (!Array.isArray(outcome)) {
         job.searchId = outcome.searchId || null;
+        job.error = outcome.warning || null;
         job.hasActiveSubscription = Boolean(outcome.hasActiveSubscription);
         job.interpretedLocation = outcome.interpretedLocation || job.interpretedLocation;
       }
@@ -147,7 +148,7 @@ export function cancelSearchJob(userId, id) {
 function publicJob(job) {
   if (!job) return null;
   const { userId, quotaReserved, quotaReleased, quotaDate, ...safe } = job;
-  return safe;
+  return { ...safe, warning: job.status === 'completed' ? job.error : null, error: job.status === 'completed' ? null : job.error };
 }
 
 setInterval(() => {

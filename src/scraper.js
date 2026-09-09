@@ -1,3 +1,4 @@
+import { collectDetails } from './maps-batch.js';
 import { recordDebugEvent } from './debug-state.js';
 import puppeteer from 'puppeteer';
 import { readPlaceDetails, requireGoogleContacts } from './maps-details.js';
@@ -271,15 +272,8 @@ async function scrollFeedUntilEnd(page, onBatch, signal, maxResults = 0) {
 }
 
 async function enrichPlaceDetails(browser, page, summaries, onProgress, signal) {
-  const results = [];
-  console.log('[Scraper] Coleta sequencial reutilizando a aba da busca.');
-  for (const item of summaries) {
-    throwIfCancelled(signal);
-    if (!item.mapsUrl) throw new Error('Estabelecimento sem link de detalhes.');
-    results.push(await readPlaceDetails(browser, item, signal, { page }));
-    onProgress?.({ phase: 'analyzing', found: summaries.length, analyzed: results.length, remaining: summaries.length - results.length });
-  }
-  return results;
+  console.log('[Scraper] Coleta sequencial com preservação de resultados parciais.');
+  return collectDetails(summaries, (item) => readPlaceDetails(browser, item, signal, { page }), { signal, onProgress });
 }
 
 export async function scrapeGoogleMaps(query, maxResults = 0, options = {}) {
@@ -367,6 +361,7 @@ export async function scrapeGoogleMaps(query, maxResults = 0, options = {}) {
         }
 
         const results = [];
+        let warning = null;
 
         if (isSinglePlace) {
           const single = await page.evaluate(() => {
@@ -401,14 +396,15 @@ export async function scrapeGoogleMaps(query, maxResults = 0, options = {}) {
           console.log(`[Scraper] ${limited.length} comércios únicos. Buscando telefones e sites...`);
           onProgress?.({ phase: 'analyzing', attempt, found: limited.length, analyzed: 0, remaining: limited.length });
           const detailed = await enrichPlaceDetails(browser, page, limited, onProgress, signal);
-          results.push(...detailed);
+          results.push(...detailed.results);
+          warning = detailed.warning;
         }
 
         await closeBrowserSafely(browser);
 
         const processedResults = requireGoogleContacts(results.map((p, index) => processPlace(p, index)));
         console.log(`[Scraper] Busca concluída: ${processedResults.length} resultados.`);
-        return processedResults;
+        return { results: processedResults, metadata: { warning } };
       } catch (error) {
         if (browser) await closeBrowserSafely(browser);
         if (error.code === 'SEARCH_CANCELLED') throw error;
