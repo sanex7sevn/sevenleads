@@ -384,7 +384,7 @@
       all_world: { queued: 'Aguardando início...', starting: 'Localizando a cidade no mundo...', location_confirmed: 'Localização confirmada.', collecting: 'Consultando estabelecimentos internacionais...', analyzing: 'Classificando os melhores resultados...', completed: 'Busca concluída' }
     };
     const labels = sourceLabels[source] || sourceLabels.google_maps;
-    document.getElementById('searchProgressLabel').textContent = labels[job.phase] || ({ target_reached: 'Quantidade atingida', source_exhausted: 'Resultados disponíveis esgotados', interrupted: 'Interrompida — pode retomar' })[job.phase] || 'Processando busca...';
+    document.getElementById('searchProgressLabel').textContent = labels[job.phase] || ({ retrying: 'Falha na leitura — preparando nova tentativa', target_reached: 'Quantidade atingida', source_exhausted: 'Resultados disponíveis esgotados', interrupted: 'Interrompida — pode retomar' })[job.phase] || 'Processando busca...';
 
     document.getElementById('searchFoundCount').textContent = job.savedCount || 0;
     document.getElementById('searchAnalyzedCount').textContent = job.analyzed || 0;
