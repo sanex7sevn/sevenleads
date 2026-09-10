@@ -41,8 +41,11 @@ export async function collectToTarget(state, target, { discover, read, checkpoin
     catch (error) {
       cancelled(signal);
       if (error.code === 'SEARCH_CANCELLED') throw error;
-      if (!['SCRAPER_DETAILS_FAILED', 'SCRAPER_BROWSER_UNRESPONSIVE'].includes(error.code)) throw error;
+      if (!['SCRAPER_DETAILS_FAILED', 'SCRAPER_BROWSER_UNRESPONSIVE', 'SCRAPER_NAVIGATION_FAILED'].includes(error.code)) throw error;
       errors++;
+      // A failed attempt is activity, but is not a successfully analyzed lead.
+      onProgress?.({ phase: 'retrying', found: state.candidates.length, analyzed: processed.size, remaining: Math.max(0, target - state.results.length) });
+      if (error.code === 'SCRAPER_NAVIGATION_FAILED') throw technicalError('A navegação falhou repetidamente; reiniciando o navegador.');
       if (error.code === 'SCRAPER_BROWSER_UNRESPONSIVE') throw technicalError('O navegador deixou de responder.');
       continue;
     }

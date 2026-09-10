@@ -8,6 +8,7 @@ function checkCancelled(signal) {
 
 export async function readPlaceDetails(browser, item, signal, { page: sharedPage } = {}) {
   let lastError;
+  let navigationFailures = 0;
   for (let attempt = 1; attempt <= 2; attempt++) {
     checkCancelled(signal);
     let page;
@@ -50,7 +51,8 @@ export async function readPlaceDetails(browser, item, signal, { page: sharedPage
     } catch (error) {
       checkCancelled(signal);
       lastError = error;
-      recordDebugEvent(`Detalhes: tentativa ${attempt}/2 — ${error.message}`);
+      if (/Navigation timeout/i.test(error.message)) navigationFailures++;
+      recordDebugEvent(`Detalhes de ${item.name || 'estabelecimento'}: tentativa ${attempt}/2 — ${error.message}`);
       console.warn(`[Scraper] Falha ao coletar detalhes (tentativa ${attempt}/2): ${error.message}`);
       // Do not send more commands to an unresponsive browser. The search runner
       // closes it with a deadline and starts a new browser on the next attempt.
@@ -67,8 +69,10 @@ export async function readPlaceDetails(browser, item, signal, { page: sharedPage
       if (page && !sharedPage) await page.close().catch(() => {});
     }
   }
-  const error = new Error('Falha ao carregar os detalhes dos estabelecimentos no Google Maps. Tente novamente em alguns minutos.');
-  error.code = 'SCRAPER_DETAILS_FAILED';
+  const error = new Error(navigationFailures === 2
+    ? 'A navegação falhou duas vezes. O navegador precisa ser reiniciado antes de continuar.'
+    : 'Falha ao carregar os detalhes dos estabelecimentos no Google Maps. Tente novamente em alguns minutos.');
+  error.code = navigationFailures === 2 ? 'SCRAPER_NAVIGATION_FAILED' : 'SCRAPER_DETAILS_FAILED';
   error.cause = lastError;
   throw error;
 }
