@@ -91,7 +91,7 @@ import { scrapeGoogleMaps } from './src/scraper.js';
 import { resolveOpenStreetMapLocation, scrapeOpenStreetMap, scrapeOpenStreetMapWorld } from './src/scraper-openstreetmap.js';
 import { sendWelcomeEmail, sendPasswordResetEmail } from './src/mailer.js';
 import { generateMessageVariations, pickRandomVariation, getOllamaConfig } from './src/ollama.js';
-import { startSearchJob, getSearchJob, getActiveSearchJob, cancelSearchJob } from './src/search-jobs.js';
+import { startSearchJob, getSearchJob, getActiveSearchJob, cancelSearchJob, resumeSearchJob, restoreSearchJobs, getLatestJob } from './src/search-jobs.js';
 import { prepareSearchResults } from './src/lead-normalization.js';
 import { criteriaFromLegacyQuery, normalizeSearchCriteria, SEARCH_CATEGORIES } from './src/search-criteria.js';
 import logger, { requestLogger } from './src/logger.js';
@@ -569,7 +569,8 @@ async function executeSearch(user, criteria, options = {}) {
     const sourceMetadata = Array.isArray(scraperOutcome) ? {} : (scraperOutcome.metadata || {});
     // Regra: só entram na listagem comércios com telefone válido (necessário para WhatsApp).
     const results = prepareSearchResults(user.id, rawResults).filter((lead) => Boolean(lead.whatsappPhone));
-    const searchId = 'srch_' + crypto.randomUUID();
+    if (options.signal?.aborted) { const error = new Error('Busca cancelada.'); error.code = 'SEARCH_CANCELLED'; throw error; }
+    const searchId = options.searchId || 'srch_' + crypto.randomUUID();
     const durationMs = Date.now() - startedAt;
     const phoneCount = results.filter((lead) => lead.whatsappPhone).length;
     const websiteCount = results.filter((lead) => lead.website).length;
@@ -588,7 +589,8 @@ async function executeSearch(user, criteria, options = {}) {
     return {
       results, searchId, hasActiveSubscription: permission.activeCheck.allowed, source,
       interpretedLocation: operationMetadata.locationLabel,
-      warning: sourceMetadata.warning || null
+      warning: sourceMetadata.warning || null,
+      completionReason: sourceMetadata.completionReason || null
     };
   } catch (error) {
     recordSourceMetric({
@@ -645,9 +647,22 @@ app.post('/api/places/search/start', authenticateToken, searchLimiter, (req, res
     (opts) => withDebugContext({ email: req.user.email, query: criteria.displayQuery, source }, () => executeSearch(req.user, criteria, { ...opts, source, maxResults, permissionChecked: true })),
     {
       source, sourceLabel: SOURCE_LABELS[source] || source, maxResults, criteria,
-      quotaReserved: permission.reserved, quotaDate: permission.quotaDate
+      quotaReserved: permission.reserved, quotaDate: permission.quotaDate, hasActiveSubscription: permission.activeCheck.allowed
     }
   );
+  res.status(202).json({ job });
+});
+
+function savedJobRunner(user, job) {
+  if (!user || user.status !== 'active') throw new Error('Conta indisponível para retomar a busca.');
+  return (opts) => withDebugContext({ email: user.email, query: job.query, source: job.source }, () => executeSearch(user, job.criteria, { ...opts, source: job.source, maxResults: job.maxResults, permissionChecked: true }));
+}
+app.get('/api/places/search/latest', authenticateToken, (req, res) => {
+  res.set('Cache-Control', 'no-store'); res.json({ job: getActiveSearchJob(req.user.id) || getLatestJob(req.user.id) });
+});
+app.post('/api/places/search/jobs/:id/resume', authenticateToken, searchLimiter, (req, res) => {
+  const job = resumeSearchJob(req.user.id, req.params.id, (saved) => savedJobRunner(req.user, saved));
+  if (!job) return res.status(409).json({ error: 'Esta busca não pode ser retomada ou já existe outra em andamento.' });
   res.status(202).json({ job });
 });
 
@@ -933,6 +948,8 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`Admin: ${process.env.ADMIN_EMAIL || 'admin@sevenleads.local'}`);
   console.log(`======================================================\n`);
 });
+
+restoreSearchJobs((job) => savedJobRunner(getUserById(job.userId), job));
 
 // Diagnóstico temporário
 server.on('error', (error) => {

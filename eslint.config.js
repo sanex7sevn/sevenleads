@@ -8,7 +8,7 @@ export default [
       ecmaVersion: 2023,
       sourceType: 'module',
       globals: {
-        window: 'readonly', document: 'readonly', navigator: 'readonly', localStorage: 'readonly',
+        structuredClone: 'readonly', Event: 'readonly', window: 'readonly', document: 'readonly', navigator: 'readonly', localStorage: 'readonly',
         location: 'readonly', history: 'readonly', fetch: 'readonly', FormData: 'readonly', Headers: 'readonly',
         URL: 'readonly', URLSearchParams: 'readonly', Blob: 'readonly', Response: 'readonly', CSS: 'readonly', XLSX: 'readonly',
         setTimeout: 'readonly', clearTimeout: 'readonly', setInterval: 'readonly', clearInterval: 'readonly',

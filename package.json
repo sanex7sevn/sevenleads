@@ -10,7 +10,7 @@
     "dev": "nodemon server.js",
     "build:css": "tailwindcss -i ./src/styles/input.css -o ./public/styles/tailwind.css --minify",
     "assets:optimize": "node scripts/optimize-assets.mjs",
-    "test": "node --test --test-concurrency=1 test/config.test.js test/database.test.js test/api.test.js test/lead-normalization.test.js test/maps-details.test.js test/admin-debug.test.js test/maps-batch.test.js",
+    "test": "node --test --test-concurrency=1 test/config.test.js test/database.test.js test/api.test.js test/lead-normalization.test.js test/maps-details.test.js test/admin-debug.test.js test/search-target.test.js test/search-jobs.test.js",
     "test:visual": "node scripts/visual-test.mjs",
     "test:sources": "node scripts/source-smoke.mjs",
     "lint": "eslint server.js src public/js public/app.js test scripts",
