@@ -5,6 +5,19 @@ const business = (i, phone = true) => ({ name: 'Business ' + i, mapsUrl: `https:
 function adapter(items, extras = {}) {
   return { discover: async () => ({ candidates: items, exhausted: true }), read: async (item) => item, checkpoint: async () => {}, ...extras };
 }
+test('navigation failures signal activity and restart without processing more pages or losing saved leads', async () => {
+  const state = newTargetState(); const activity = []; const visited = [];
+  await assert.rejects(collectToTarget(state, 50, adapter([business(1), business(2), business(3)], {
+    read: async (item) => {
+      visited.push(item.name);
+      if (item.name === 'Business 2') { const error = new Error('Repeated timeout'); error.code = 'SCRAPER_NAVIGATION_FAILED'; throw error; }
+      return item;
+    }, onProgress: (progress) => activity.push(progress)
+  })), { code: 'SEARCH_INTERRUPTED' });
+  assert.deepEqual(visited, ['Business 1', 'Business 2']);
+  assert.equal(state.results.length, 1); assert.equal(state.processed.length, 1);
+  assert.equal(activity.at(-1).phase, 'retrying'); assert.equal(activity.at(-1).analyzed, 1);
+});
 for (const target of [50, 100, 150]) test(`saves exactly ${target} unique contacts, replacing missing phones and duplicates`, async () => {
   const items = Array.from({ length: target + 20 }, (_, i) => business(i, i >= 10));
   items.splice(15, 0, business(12));

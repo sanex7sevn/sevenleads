@@ -3,6 +3,12 @@ import assert from 'node:assert/strict';
 import { readPlaceDetails, requireGoogleContacts } from '../src/maps-details.js';
 
 const item = { name: 'Clínica', mapsUrl: 'https://www.google.com/maps/place/test', address: 'São Paulo' };
+test('two navigation timeouts request browser recovery instead of skipping to more pages', async () => {
+  let calls = 0;
+  const page = { async goto() { calls++; throw new Error('Navigation timeout of 30000 ms exceeded'); } };
+  await assert.rejects(readPlaceDetails({}, item, undefined, { page }), { code: 'SCRAPER_NAVIGATION_FAILED' });
+  assert.equal(calls, 2);
+});
 test('reuses the search page across establishments without creating or closing tabs', async () => {
   let navigations = 0;
   const page = {
