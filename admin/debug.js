@@ -1,6 +1,6 @@
 const form = document.getElementById('filters');
 const status = document.getElementById('status');
-const labels = { interrupted: 'Interrompida (retomável)', target_reached: 'Meta atingida', source_exhausted: 'Lista esgotada', queued: 'Na fila', running: 'Em andamento', completed: 'Concluída', failed: 'Falhou', cancelled: 'Cancelada', starting: 'Iniciando', collecting: 'Coletando', analyzing: 'Analisando' };
+const labels = { retrying: 'Preparando nova tentativa', interrupted: 'Interrompida (retomável)', target_reached: 'Meta atingida', source_exhausted: 'Lista esgotada', queued: 'Na fila', running: 'Em andamento', completed: 'Concluída', failed: 'Falhou', cancelled: 'Cancelada', starting: 'Iniciando', collecting: 'Coletando', analyzing: 'Analisando' };
 let busy = false;
 function element(tag, text, className) { const node = document.createElement(tag); node.textContent = text; if (className) node.className = className; return node; }
 function memory(value) { return value == null ? 'Indisponível' : `${Math.round(value / 1048576)} MB`; }
