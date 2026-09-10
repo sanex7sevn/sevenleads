@@ -310,6 +310,7 @@ export function logSearch(id, userId, query, totalLeads, source = 'google_maps',
       location_label, duration_ms, phone_count, website_count, cache_hit
     )
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET total_leads = excluded.total_leads, duration_ms = excluded.duration_ms, phone_count = excluded.phone_count, website_count = excluded.website_count
   `).run(
     id, userId, query, totalLeads, source,
     metadata.category || null, metadata.city || null, metadata.region || null,
@@ -364,6 +365,8 @@ function searchJobRowToObject(row) {
     userId: row.user_id,
     query: row.query,
     criteria: parseJson(row.criteria, {}),
+    checkpoint: parseJson(row.checkpoint, null),
+    completionReason: row.completion_reason || null,
     source: row.source,
     sourceLabel: row.source_label,
     maxResults: Number(row.max_results || 50),
@@ -390,9 +393,11 @@ export function saveSearchJob(job) {
     INSERT INTO search_jobs (
       id, user_id, query, criteria, source, source_label, max_results, status, phase,
       found, analyzed, remaining, results, error, search_id, interpreted_location,
-      has_active_subscription, quota_reserved, quota_released, quota_date, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      has_active_subscription, quota_reserved, quota_released, quota_date, created_at, updated_at, checkpoint, completion_reason
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
+      checkpoint = excluded.checkpoint,
+      completion_reason = excluded.completion_reason,
       criteria = excluded.criteria,
       source = excluded.source,
       source_label = excluded.source_label,
@@ -418,7 +423,8 @@ export function saveSearchJob(job) {
     job.results == null ? null : JSON.stringify(job.results), job.error || null,
     job.searchId || null, job.interpretedLocation || null,
     job.hasActiveSubscription ? 1 : 0, job.quotaReserved ? 1 : 0,
-    job.quotaReleased ? 1 : 0, job.quotaDate || null, job.createdAt, job.updatedAt
+    job.quotaReleased ? 1 : 0, job.quotaDate || null, job.createdAt, job.updatedAt,
+    job.checkpoint ? JSON.stringify(job.checkpoint) : null, job.completionReason || null
   );
   return searchJobRowToObject(db.prepare('SELECT * FROM search_jobs WHERE id = ?').get(job.id));
 }
@@ -456,10 +462,14 @@ export function releaseSearchJobQuota(jobId, userId) {
   return releaseSearchJobQuotaTransaction(jobId, userId);
 }
 
-export function recoverInterruptedSearchJobs() {
-  const interrupted = db.prepare("SELECT id, user_id FROM search_jobs WHERE status IN ('queued', 'running')").all();
+export function recoverInterruptedSearchJobs({ preserveGoogle = false } = {}) {
+  const interrupted = db.prepare("SELECT id, user_id, source FROM search_jobs WHERE status IN ('queued', 'running')").all();
   const recover = db.transaction(() => {
     for (const job of interrupted) {
+      if (preserveGoogle && job.source === 'google_maps') {
+        db.prepare("UPDATE search_jobs SET status = 'interrupted', phase = 'interrupted', error = 'Servidor reiniciado; progresso preservado.', updated_at = ? WHERE id = ?").run(new Date().toISOString(), job.id);
+        continue;
+      }
       releaseSearchJobQuotaTransaction(job.id, job.user_id);
       db.prepare(`
         UPDATE search_jobs SET status = 'failed', phase = 'failed',
@@ -1167,3 +1177,18 @@ export function replaceUserLeads(userId, leads) {
 }
 
 export default db;
+
+export function listRunningSearchJobs() {
+  return db.prepare("SELECT * FROM search_jobs WHERE status IN ('queued', 'running') ORDER BY created_at").all().map(searchJobRowToObject);
+}
+export function getLatestSearchJob(userId) {
+  return searchJobRowToObject(db.prepare('SELECT * FROM search_jobs WHERE user_id = ? ORDER BY created_at DESC LIMIT 1').get(userId));
+}
+export function saveJobProgress(job) {
+  db.transaction(() => {
+    saveSearchJob(job);
+    logSearch(job.searchId, job.userId, job.query, job.results?.length || 0, job.source, job.criteria);
+    db.prepare('UPDATE searches SET status = ? WHERE id = ? AND user_id = ?').run(job.status, job.searchId, job.userId);
+    if (job.results?.length) upsertLeads(job.userId, job.results, { searchId: job.searchId, source: job.source });
+  })();
+}

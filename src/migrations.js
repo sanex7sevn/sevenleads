@@ -144,7 +144,11 @@ const migrations = [
       ensureColumn(db, 'searches', 'website_count', 'INTEGER DEFAULT 0');
       ensureColumn(db, 'searches', 'cache_hit', 'INTEGER DEFAULT 0');
     }
-  }
+  },
+  { id: '003_search_target_checkpoint', up(db) {
+    ensureColumn(db, 'search_jobs', 'checkpoint', 'TEXT');
+    ensureColumn(db, 'search_jobs', 'completion_reason', 'TEXT');
+  } }
 ];
 
 function ensureColumn(db, table, column, definition) {

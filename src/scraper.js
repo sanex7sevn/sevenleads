@@ -1,7 +1,7 @@
-import { collectDetails } from './maps-batch.js';
+import { collectToTarget, newTargetState, technicalError } from './search-target.js';
 import { recordDebugEvent } from './debug-state.js';
 import puppeteer from 'puppeteer';
-import { readPlaceDetails, requireGoogleContacts } from './maps-details.js';
+import { readPlaceDetails } from './maps-details.js';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -78,8 +78,9 @@ function sleep(ms) {
 async function closeBrowserSafely(browser, timeoutMs = 10000) {
   if (!browser) return;
   let timedOut = false;
+  let timer;
   const timeout = new Promise((resolve) => {
-    setTimeout(() => {
+    timer = setTimeout(() => {
       timedOut = true;
       resolve();
     }, timeoutMs);
@@ -91,6 +92,7 @@ async function closeBrowserSafely(browser, timeoutMs = 10000) {
     timedOut = true;
   }
 
+  clearTimeout(timer);
   if (timedOut) {
     try {
       const proc = browser.process?.();
@@ -198,6 +200,7 @@ async function scrollFeedUntilEnd(page, onBatch, signal, maxResults = 0) {
   const maxIdleRounds = 3;
   const maxScrolls = 80;
   let idleRounds = 0;
+  let exhausted = false;
   let lastHeight = 0;
   let lastCount = 0;
   const collected = new Map();
@@ -247,7 +250,8 @@ async function scrollFeedUntilEnd(page, onBatch, signal, maxResults = 0) {
     }
 
     if (state.endOfList) {
-      console.log('[Scraper] Fim da lista detectado no painel.');
+      console.log('[Scraper] Fim da lista confirmado no painel.');
+      exhausted = true;
       break;
     }
 
@@ -268,169 +272,82 @@ async function scrollFeedUntilEnd(page, onBatch, signal, maxResults = 0) {
     await sleep(randomDelay(1500, 2000));
   }
 
-  return Array.from(collected.values());
+  return { candidates: Array.from(collected.values()), exhausted };
 }
 
-async function enrichPlaceDetails(browser, page, summaries, onProgress, signal) {
-  console.log('[Scraper] Coleta sequencial com preservação de resultados parciais.');
-  return collectDetails(summaries, (item) => readPlaceDetails(browser, item, signal, { page }), { signal, onProgress });
-}
 
-export async function scrapeGoogleMaps(query, maxResults = 0, options = {}) {
-  const { onProgress, signal } = options;
-  return scraperQueue.run(async () => {
-    const MAX_ATTEMPTS = 3;
-    let lastError = null;
-
-    console.log(`\n[Scraper] Iniciando busca: "${query}"...`);
-
-    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-      throwIfCancelled(signal);
-      onProgress?.({ phase: 'starting', attempt, found: 0, analyzed: 0, remaining: 0 });
-      if (attempt > 1) {
-        const waitMs = randomDelay(8000, 15000);
-        console.log(`[Scraper] Tentativa ${attempt}/${MAX_ATTEMPTS}. Aguardando ${Math.round(waitMs / 1000)}s antes de repetir...`);
-        await sleep(waitMs);
-      }
-
-      let browser = null;
-      try {
-        throwIfCancelled(signal);
-        const chromePath = resolveChromePath();
-       browser = await puppeteer.launch({
-  headless: true,
-  executablePath: chromePath,
-  timeout: 60000,
-  protocolTimeout: 60000,
-  args: [
-    '--no-sandbox',
-    '--disable-setuid-sandbox',
-    '--disable-dev-shm-usage',
-    '--disable-gpu',
-    '--disable-software-rasterizer',
-    '--no-zygote',
-    '--disable-background-networking',
-    '--disable-extensions',
-    '--disable-features=Translate,BackForwardCache',
-    '--window-size=1280,900',
-    '--lang=pt-BR,pt,en-US,en'
-  ]
-});
-
-        const page = (await browser.pages())[0] || await browser.newPage();
-        await page.setViewport({ width: 1280, height: 900 });
-
-        const searchUrl = `https://www.google.com/maps/search/${encodeURIComponent(query)}?hl=pt-BR`;
-        await page.goto(searchUrl, { waitUntil: 'networkidle2', timeout: 60000 });
-        throwIfCancelled(signal);
-        onProgress?.({ phase: 'collecting', attempt, found: 0, analyzed: 0, remaining: 0 });
-
-        // Detecta bloqueio/captcha — se acontecer, tenta novamente
-        const blocked = await page.evaluate(() => {
-          const text = (document.body.innerText || '').toLowerCase();
-          return /não é um robô|nao e um robo|unusual traffic|enable javascript and cookies|recaptcha|automated requests/i.test(text);
-        });
-
-        if (blocked) {
-          const err = new Error('O Google Maps detectou a automação (possível bloqueio).');
-          err.code = 'SCRAPER_BLOCKED';
-          await closeBrowserSafely(browser);
-          lastError = err;
-          console.warn(`[Scraper] ${err.message} Tentativa ${attempt}/${MAX_ATTEMPTS}.`);
-          continue;
-        }
-
-        try {
-          const consentButtons = await page.$$('button');
-          for (const btn of consentButtons) {
-            const text = await page.evaluate((el) => el.innerText || el.getAttribute('aria-label') || '', btn);
-            if (/aceitar tudo|concordo|aceito|accept all|i agree|agree/i.test(text)) {
-              await btn.click();
-              await sleep(1200);
-              break;
-            }
-          }
-        } catch (e) {}
-
-        let isSinglePlace = false;
-        try {
-          await page.waitForSelector('div[role="feed"], div.Nv2PK, h1.DUwDvf', { timeout: 20000 });
-          isSinglePlace = !(await page.$('div[role="feed"], div.Nv2PK'));
-        } catch (e) {
-          console.log('Aviso: Feed padrão não encontrado, tentando extrair da tela atual.');
-        }
-
-        const results = [];
-        let warning = null;
-
-        if (isSinglePlace) {
-          const single = await page.evaluate(() => {
-            const name = document.querySelector('h1.DUwDvf, h1')?.innerText?.trim() || '';
-            const phoneEl = document.querySelector('button[data-item-id^="phone:tel:"], button[aria-label*="Telefone:"], a[href^="tel:"]');
-            const phone = phoneEl ? (phoneEl.getAttribute('aria-label') || phoneEl.innerText).replace(/telefone:|\+55/gi, '').trim() : '';
-
-            const siteEl = document.querySelector('a[data-item-id="authority"], a[aria-label*="site" i], a[aria-label*="website" i]');
-            const website = siteEl ? siteEl.getAttribute('href') : null;
-
-            const addrEl = document.querySelector('button[data-item-id="address"], button[aria-label*="Endereço:" i]');
-            const address = addrEl ? (addrEl.getAttribute('aria-label') || addrEl.innerText).replace(/endereço:/gi, '').trim() : '';
-
-            return { name, phone, website, address, mapsUrl: window.location.href };
-          });
-
-          if (single.name) results.push(await readPlaceDetails(browser, single, signal, { page }));
-        } else {
-          console.log('[Scraper] Rolando lista de estabelecimentos até o fim...');
-          const placeSummaries = await scrollFeedUntilEnd(page, (items) => {
-            onProgress?.({ phase: 'collecting', attempt, found: items.length, analyzed: 0, remaining: items.length });
-          }, signal, maxResults);
-          const limited = maxResults > 0 ? placeSummaries.slice(0, maxResults) : placeSummaries;
-
-          if (limited.length === 0) {
-            const err = new Error('Nenhum comércio encontrado. Confira o termo/cidade da busca ou tente novamente.');
-            err.code = 'NO_RESULTS';
-            await closeBrowserSafely(browser);
-            throw err;
-          }
-
-          console.log(`[Scraper] ${limited.length} comércios únicos. Buscando telefones e sites...`);
-          onProgress?.({ phase: 'analyzing', attempt, found: limited.length, analyzed: 0, remaining: limited.length });
-          const detailed = await enrichPlaceDetails(browser, page, limited, onProgress, signal);
-          results.push(...detailed.results);
-          warning = detailed.warning;
-        }
-
-        await closeBrowserSafely(browser);
-
-        const processedResults = requireGoogleContacts(results.map((p, index) => processPlace(p, index)));
-        console.log(`[Scraper] Busca concluída: ${processedResults.length} resultados.`);
-        return { results: processedResults, metadata: { warning } };
-      } catch (error) {
-        if (browser) await closeBrowserSafely(browser);
-        if (error.code === 'SEARCH_CANCELLED') throw error;
-        if (error.code === 'NO_RESULTS') throw error;
-        lastError = error;
-        recordDebugEvent(`Busca: tentativa ${attempt}/${MAX_ATTEMPTS} — ${error.message}`);
-        console.warn(`[Scraper] Erro na tentativa ${attempt}/${MAX_ATTEMPTS}:`, error.message);
-
-        // Se for um erro de navegação/tempo, dá chance de repetir
-        if (attempt < MAX_ATTEMPTS) {
-          continue;
-        }
-      }
-    }
-
-    // Esgota as tentativas: lança um erro claro e útil
-    const friendly = new Error(
-      'Não foi possível concluir a busca no Google Maps após várias tentativas. ' +
-      'Pode haver falha no navegador, lentidão ou bloqueio temporário do Google. ' +
-      'Aguarde alguns minutos e tente novamente, ou troque o termo de busca.'
-    );
-    friendly.cause = lastError;
-    friendly.code = lastError?.code || 'SCRAPER_FAILED';
-    console.error('[Scraper] Falha definitiva:', lastError?.message);
-    throw friendly;
+async function launchBrowser() {
+  return puppeteer.launch({
+    headless: true, executablePath: resolveChromePath(), timeout: 60000, protocolTimeout: 60000,
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--disable-gpu',
+      '--disable-background-networking', '--disable-extensions', '--window-size=1280,900', '--lang=pt-BR']
   });
 }
 
+export async function scrapeGoogleMaps(query, maxResults = 50, options = {}) {
+  const { onProgress, signal, onCheckpoint } = options;
+  const state = newTargetState(options.checkpoint);
+  return scraperQueue.run(async () => {
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      throwIfCancelled(signal);
+      let browser;
+      let page;
+      let reads = 0;
+      const open = async () => {
+        browser = await launchBrowser();
+        page = (await browser.pages())[0] || await browser.newPage();
+        await page.setViewport({ width: 1280, height: 900 });
+      };
+      try {
+        onProgress?.({ phase: 'starting', found: state.candidates.length, analyzed: state.processed.length, remaining: maxResults - state.results.length });
+        await open();
+        const outcome = await collectToTarget(state, maxResults, {
+          signal, onProgress,
+          checkpoint: async (next) => { throwIfCancelled(signal); await onCheckpoint?.(next); },
+          discover: async () => {
+            await page.goto('https://www.google.com/maps/search/' + encodeURIComponent(query) + '?hl=pt-BR', { waitUntil: 'domcontentloaded', timeout: 60000 });
+            throwIfCancelled(signal);
+            for (const button of await page.$$('button')) {
+              const label = await button.evaluate((element) => element.innerText || '');
+              if (/^(aceitar tudo|accept all|concordo|i agree)$/i.test(label.trim())) { await button.click(); break; }
+            }
+            const blocked = await page.evaluate(() => /unusual traffic|não é um robô|automated requests|recaptcha/i.test(document.body.innerText || ''));
+            if (blocked) throw technicalError('O Google solicitou uma verificação ou bloqueou a coleta.');
+            try {
+              await page.waitForSelector('div[role="feed"], div.Nv2PK, h1.DUwDvf', { timeout: 30000 });
+            } catch (error) {
+              const empty = await page.evaluate(() => /nenhum resultado encontrado|não foi possível encontrar|no results found|can't find/i.test(document.body.innerText || ''));
+              if (empty) return { candidates: [], exhausted: true };
+              throw error;
+            }
+            if (!(await page.$('div[role="feed"], div.Nv2PK'))) {
+              const single = await page.evaluate(() => ({ name: document.querySelector('h1.DUwDvf')?.innerText?.trim(), mapsUrl: location.href }));
+              if (!single.name) throw technicalError('Painel do estabelecimento não reconhecido.');
+              return { candidates: [single], exhausted: true };
+            }
+            // Collect the available list, not just N cards: missing phones and
+            // duplicates must be replaced by further candidates.
+            return scrollFeedUntilEnd(page, (items) => onProgress?.({ phase: 'collecting', found: items.length, analyzed: state.processed.length, remaining: maxResults - state.results.length }), signal, 0);
+          },
+          read: async (item) => {
+            if (reads && reads % 20 === 0) {
+              await closeBrowserSafely(browser); browser = null;
+              throwIfCancelled(signal); await open();
+            }
+            reads++;
+            return processPlace(await readPlaceDetails(browser, item, signal, { page }), reads);
+          }
+        });
+        recordDebugEvent('Coleta finalizada: ' + outcome.completionReason + '; ' + outcome.results.length + '/' + maxResults + ' leads.');
+        return { results: outcome.results, metadata: { warning: outcome.warning || null, completionReason: outcome.completionReason } };
+      } catch (error) {
+        if (signal?.aborted || error.code === 'SEARCH_CANCELLED') throw error;
+        recordDebugEvent('Tentativa ' + attempt + '/3 interrompida: ' + error.message + '; progresso preservado: ' + state.results.length + '/' + maxResults);
+        if (attempt === 3) throw technicalError(error.message);
+      } finally {
+        await closeBrowserSafely(browser);
+      }
+    }
+  });
+}
 export { normalizePhone };
