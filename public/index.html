@@ -335,7 +335,8 @@
           <!-- Filtros Rápidos -->
           <div class="flex flex-wrap items-center gap-2 pt-1 text-xs">
             <span class="text-slate-400 font-medium">Filtrar:</span>
-            <button type="button" class="filter-btn active px-3 py-1 rounded-md bg-[#087CFF] text-[#F2F5FF] border border-[#087CFF] font-medium flex items-center gap-1.5" data-filter="no-site"><span class="w-2 h-2 rounded-full bg-pink-500"></span> Sem Site</button>
+            <button type="button" class="filter-btn active px-3 py-1 rounded-md bg-[#087CFF] text-[#F2F5FF] border border-[#087CFF]" data-filter="all">Todos</button>
+            <button type="button" class="filter-btn px-3 py-1 rounded-md bg-[#020A20] text-[#F2F5FF]/65 border border-[#087CFF]/20 font-medium flex items-center gap-1.5" data-filter="no-site"><span class="w-2 h-2 rounded-full bg-pink-500"></span> Sem Site</button>
             <button type="button" class="filter-btn px-3 py-1 rounded-md bg-[#020A20] border border-[#087CFF]/20 text-[#F2F5FF]/65 hover:border-[#087CFF]/40 hover:text-[#F2F5FF] font-medium flex items-center gap-1.5 transition" data-filter="with-site"><span class="w-2 h-2 rounded-full bg-cyan-400"></span> Com Site</button>
             <button type="button" class="filter-btn px-3 py-1 rounded-md bg-[#020A20] border border-[#087CFF]/20 text-[#F2F5FF]/65 hover:border-[#087CFF]/40 hover:text-[#F2F5FF] font-medium flex items-center gap-1.5 transition" data-filter="social-only"><span class="w-2 h-2 rounded-full bg-yellow-400"></span> Com Rede Social</button>
           </div>
@@ -363,6 +364,7 @@ Vi o perfil de vocês e queria apresentar uma ideia rápida.</textarea>
     </div>
 
   <!-- Progresso de Busca -->
+    <div id="resumeSearchPanel" class="hidden rounded-xl border border-[#087CFF]/30 p-4"><p id="resumeSearchText"></p><button type="button" id="btnResumeSearch" class="px-3 py-2 rounded bg-[#087CFF]">Retomar busca</button></div>
     <div id="searchProgress" class="hidden bg-[#020A20] border border-[#087CFF]/30 rounded-xl p-4 flex items-center gap-4 animate-pulse">
       <div class="text-[#087CFF] text-2xl">
         <i class="fa-solid fa-circle-notch fa-spin"></i>
@@ -373,7 +375,7 @@ Vi o perfil de vocês e queria apresentar uma ideia rápida.</textarea>
       </div>
       <div class="search-progress-details">
         <strong id="searchProgressLabel">Preparando busca...</strong>
-        <span><b id="searchFoundCount">0</b> encontrados · <b id="searchAnalyzedCount">0</b> analisados · <b id="searchRemainingCount">0</b> restantes</span>
+        <span><b id="searchFoundCount">0</b> leads salvos · <b id="searchAnalyzedCount">0</b> analisados · <b id="searchRemainingCount">0</b> restantes</span>
       </div>
       <button id="btnCancelSearch" type="button" class="cancel-search">Cancelar</button>
     </div>
