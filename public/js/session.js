@@ -103,6 +103,7 @@ document.getElementById('registerForm').addEventListener('submit', async (e) => 
 });
 
 async function logoutApp() {
+  window.dispatchEvent(new Event('sevenleads:logout'));
   try { await fetch('/api/auth/logout', { method: 'POST' }); } catch {}
   localStorage.removeItem('sevenleads_token');
   authToken = null;
@@ -150,7 +151,8 @@ async function initApp() {
     loadPublicSettings();
 
     // Carrega leads salvos do banco (sobrevivem a reinícios do servidor)
-    loadSavedLeads();
+    await loadSavedLeads();
+    window.dispatchEvent(new Event('sevenleads:ready'));
 
     // Inicia monitoramento do WhatsApp do usuário
     checkWhatsAppStatus();

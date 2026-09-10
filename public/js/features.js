@@ -286,6 +286,66 @@
       country: document.getElementById('searchCountry')?.value.trim() || ''
     };
   }
+  let resumableJob = null;
+  function showResume(job) {
+    resumableJob = job?.canResume ? job : null;
+    document.getElementById('resumeSearchPanel').classList.toggle('hidden', !resumableJob);
+    document.getElementById('resumeSearchText').textContent = resumableJob
+      ? 'Busca interrompida: ' + job.savedCount + ' de ' + job.maxResults + ' leads salvos. ' + (job.error || '') : '';
+  }
+  async function monitorSearch(initialJob) {
+    const account = currentUser?.id;
+    currentSearchJobId = initialJob.id;
+    showResume(null);
+    document.getElementById('searchProgress').classList.remove('hidden');
+    while (currentSearchJobId === initialJob.id && currentUser?.id === account) {
+      const { job } = await API.get('/api/places/search/jobs/' + encodeURIComponent(initialJob.id));
+      if (currentSearchJobId !== initialJob.id || currentUser?.id !== account) break;
+      updateSearchProgress(job, job.source);
+      if (!['queued', 'running'].includes(job.status)) {
+        currentSearchJobId = null;
+        leadsData = (job.results || []).map(normalizeLead);
+        selectedLeadIds.clear(); isPaidUser = Boolean(job.hasActiveSubscription);
+        document.querySelector('[data-filter="all"]')?.click(); renderTable();
+        showResume(job);
+        UI.notify(job.status === 'completed' ? job.warning || (leadsData.length + ' leads salvos. Quantidade atingida.') : job.error || 'Busca interrompida.', job.status === 'completed' && !job.warning ? 'success' : 'info');
+        if (job.status === 'completed') await verifyWhatsAppNumbers();
+        break;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+    }
+  }
+  async function recoverSearch() {
+    if (!currentUser || currentSearchJobId) return;
+    const account = currentUser.id;
+    try {
+      const { job } = await API.get('/api/places/search/latest');
+      if (currentUser?.id !== account || !job) return;
+      showResume(job);
+      if (['queued', 'running'].includes(job.status)) {
+        document.getElementById('btnSearch').disabled = true;
+        await monitorSearch(job);
+      }
+    } catch (error) { currentSearchJobId = null; UI.notify('Não foi possível acompanhar a busca. Reabra o site para reconectar.', 'info'); }
+    finally { document.getElementById('btnSearch').disabled = false; if (!currentSearchJobId) document.getElementById('searchProgress').classList.add('hidden'); }
+  }
+  document.getElementById('btnResumeSearch').addEventListener('click', async () => {
+    if (!resumableJob || currentSearchJobId) return;
+    const id = resumableJob.id;
+    document.getElementById('btnResumeSearch').disabled = true;
+    document.getElementById('btnSearch').disabled = true;
+    try {
+      const { job } = await API.post('/api/places/search/jobs/' + encodeURIComponent(id) + '/resume', {});
+      await monitorSearch(job);
+    } catch (error) { currentSearchJobId = null; UI.notify(error.message, 'error'); }
+    finally {
+      document.getElementById('btnResumeSearch').disabled = false; document.getElementById('btnSearch').disabled = false;
+      document.getElementById('searchProgress').classList.add('hidden');
+    }
+  });
+  window.addEventListener('sevenleads:ready', recoverSearch);
+  window.addEventListener('sevenleads:logout', () => { currentSearchJobId = null; showResume(null); document.getElementById('searchProgress').classList.add('hidden'); });
+  if (currentUser) recoverSearch();
   async function runSearchJob(event) {
     event.preventDefault(); event.stopImmediatePropagation();
     const payload = currentSearchPayload();
@@ -301,23 +361,7 @@
       updateSearchProgress({ phase: 'queued', found: 0, analyzed: 0, remaining: 0, interpretedLocation: location.interpretedLocation }, source);
       button.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Buscando...';
       const { job } = await API.post('/api/places/search/start', payload);
-      currentSearchJobId = job.id;
-      while (currentSearchJobId) {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-        const data = await API.get(`/api/places/search/jobs/${encodeURIComponent(job.id)}`);
-        updateSearchProgress(data.job, source);
-        if (data.job.status === 'completed') {
-          leadsData = (data.job.results || []).map(normalizeLead);
-          selectedLeadIds.clear(); isPaidUser = Boolean(data.job.hasActiveSubscription); renderTable();
-          UI.notify(data.job.warning || `${leadsData.length} leads encontrados e salvos nesta pesquisa.`, data.job.warning ? 'info' : 'success');
-          currentSearchJobId = null;
-          await verifyWhatsAppNumbers();
-          break;
-        }
-        if (data.job.status === 'failed' || data.job.status === 'cancelled') {
-          throw new Error(data.job.error || (data.job.status === 'cancelled' ? 'Busca cancelada.' : 'A busca falhou.'));
-        }
-      }
+      await monitorSearch(job);
     } catch (error) {
       currentSearchJobId = null;
       if (error.data?.expired) openPixModal();
@@ -340,9 +384,9 @@
       all_world: { queued: 'Aguardando início...', starting: 'Localizando a cidade no mundo...', location_confirmed: 'Localização confirmada.', collecting: 'Consultando estabelecimentos internacionais...', analyzing: 'Classificando os melhores resultados...', completed: 'Busca concluída' }
     };
     const labels = sourceLabels[source] || sourceLabels.google_maps;
-    document.getElementById('searchProgressLabel').textContent = labels[job.phase] || 'Processando busca...';
+    document.getElementById('searchProgressLabel').textContent = labels[job.phase] || ({ target_reached: 'Quantidade atingida', source_exhausted: 'Resultados disponíveis esgotados', interrupted: 'Interrompida — pode retomar' })[job.phase] || 'Processando busca...';
 
-    document.getElementById('searchFoundCount').textContent = job.found || 0;
+    document.getElementById('searchFoundCount').textContent = job.savedCount || 0;
     document.getElementById('searchAnalyzedCount').textContent = job.analyzed || 0;
     document.getElementById('searchRemainingCount').textContent = job.remaining || 0;
 
@@ -356,7 +400,7 @@
         directories: 'Consultando estabelecimentos brasileiros cadastrados no OpenStreetMap.',
         all_world: 'Consultando estabelecimentos em qualquer cidade informada no mundo.'
       };
-      desc.textContent = job.interpretedLocation ? `Pesquisando em ${job.interpretedLocation}.` : (descriptions[source] || 'Obtendo dados em segundo plano.');
+      desc.textContent = job.source === 'google_maps' ? ((job.savedCount || 0) + ' de ' + job.maxResults + ' leads salvos. A busca continua até atingir a meta ou esgotar a lista disponível.') : job.interpretedLocation ? `Pesquisando em ${job.interpretedLocation}.` : (descriptions[source] || 'Obtendo dados em segundo plano.');
     }
   }
 
