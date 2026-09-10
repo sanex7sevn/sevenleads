@@ -180,6 +180,21 @@ test('administrador não pode excluir a própria conta', async () => {
   assert.equal(response.response.status, 400);
 });
 
+test('rotas de acompanhamento e retomada exigem sessão e não expõem buscas alheias', async () => {
+  assert.equal((await json('/api/places/search/latest')).response.status, 401);
+  assert.equal((await json('/api/places/search/jobs/unknown/resume', { method: 'POST' })).response.status, 401);
+  const login = await json('/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'maria@teste.local', password: 'senha123' }) });
+  const headers = { cookie: sessionCookie(login), 'content-type': 'application/json' };
+  const latest = await json('/api/places/search/latest', { headers });
+  assert.equal(latest.response.status, 200);
+  const denied = await json('/api/places/search/jobs/unknown/resume', { method: 'POST', headers, body: '{}' });
+  assert.equal(denied.response.status, 409);
+  for (const url of ['/admin/debug', '/admin/debug/app.js', '/admin/debug/style.css', '/api/admin/debug']) {
+    const response = await fetch(baseUrl + url, { headers });
+    assert.equal(response.status, 403, url); assert.match(response.headers.get('cache-control'), /no-store/);
+  }
+});
+
 test.after(async () => {
   await new Promise((resolve) => server.close(resolve));
   closeDatabase();
